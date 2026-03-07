@@ -15,6 +15,7 @@
 - **🚀 Direct OpenClaw Communication**: Full replacement for external chat tools (like Telegram). Connect directly to your OpenClaw instance for seamless interaction.
 - **🤖 Native Command Support**: Support for all native OpenClaw commands (e.g., `/status`, `/help`) directly in the chat interface.
 - **📱 Perfect Mobile Experience**: Fully optimized responsive design for seamless interaction on smartphones and tablets.
+- **📁 Shared Workspace Integration**: Support for shared workspace folders with OpenClaw, ensuring uploaded files are immediately readable by AI.
 - **⚡ Custom Quick Commands**: Define and manage your own shortcut commands for frequently used tasks to maximize efficiency.
 - **📸 Comprehensive Chat Experience**:
   - Full **Markdown** support for rich text, code snippets, and structured data.
@@ -77,6 +78,7 @@ curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/ma
 - **🚀 直连 OpenClaw 通信**：完全取代 TG 等第三方聊天工具。直接与您的 OpenClaw 实例连接，实现无缝沟通。
 - **🤖 原生指令支持**：支持所有 OpenClaw 原生指令（如 `/status`、`/help`），直接在对话框输入即可。
 - **📱 完美的手机移动端体验**：深度优化的响应式设计，在手机和平板电脑上也能获得极致的交互体验。
+- **📁 工作区深度共享**：支持与 OpenClaw 共享工作文件夹，确保上传的文件能被 AI 直接读取识别。
 - **⚡ 自定义快捷指令**：自由定义和管理您的专属快捷指令，大幅提升日常操作效率。
 - **📸 完整聊天体验**：
   - 完美支持 **Markdown** 格式，包括代码高亮、表格及富文本。

@@ -30,7 +30,28 @@ fs.mkdirSync(uploadDir, { recursive: true });
 const openclawMediaDir = path.join(process.env.HOME || '.', '.openclaw', 'media');
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+  destination: (_req, _file, cb) => {
+    const config = configManager.getConfig();
+    let finalUploadDir = uploadDir;
+
+    if (config.openclawWorkspace) {
+      // Expand ~ if present
+      let workspacePath = config.openclawWorkspace;
+      if (workspacePath.startsWith('~')) {
+        workspacePath = path.join(process.env.HOME || '', workspacePath.slice(1));
+      }
+      
+      const sharedUploadDir = path.join(workspacePath, 'uploads');
+      try {
+        fs.mkdirSync(sharedUploadDir, { recursive: true });
+        finalUploadDir = sharedUploadDir;
+      } catch (err) {
+        console.error(`[Upload] Failed to use shared workspace: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
+    cb(null, finalUploadDir);
+  },
   filename: (_req, file, cb) => {
     const decodedName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const safe = decodedName.replace(/[^a-zA-Z0-9.\u4e00-\u9fa5_-]/g, '_');

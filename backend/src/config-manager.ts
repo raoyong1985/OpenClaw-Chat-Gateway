@@ -10,6 +10,7 @@ interface Config {
   loginEnabled?: boolean;
   loginPassword?: string;
   allowedHosts?: string[];
+  openclawWorkspace?: string;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -20,6 +21,7 @@ const DEFAULT_CONFIG: Config = {
   loginEnabled: false,
   loginPassword: '123456',
   allowedHosts: [],
+  openclawWorkspace: '',
 };
 
 export class ConfigManager {
