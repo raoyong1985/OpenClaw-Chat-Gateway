@@ -12,24 +12,18 @@
 
 ### ✨ Key Features
 
-- **🚀 Advanced Chat UI**: 
-  - Telegram-style image previews.
-  - Multi-line text input with automatic height adjustment.
-  - Drag-and-drop file/image uploads.
-  - Message quoting and search functionality.
-- **📁 Session Management**:
-  - Create and manage multiple character sessions.
-  - **Drag-and-drop reordering** of sessions in the sidebar.
-- **🛡️ Secure Isolation**:
-  - Independent database and upload directories.
-- **⚙️ Robust Settings**:
-  - Mandatory Gateway URL validation with connectivity testing.
-  - AI branding (custom AI names).
-  - Domain whitelist (allowed hosts) for secure reverse proxy deployment.
-  - Optional login password protection.
-- **🤖 System Integration**:
-  - Built-in `systemd` user service support for auto-start.
-  - One-click deployment script with **customizable port**.
+- **🚀 Direct OpenClaw Communication**: Full replacement for external chat tools (like Telegram). Connect directly to your OpenClaw instance for seamless interaction.
+- **🤖 Native Command Support**: Support for all native OpenClaw commands (e.g., `/status`, `/help`) directly in the chat interface.
+- **📸 Comprehensive Chat Experience**:
+  - Full **Markdown** support for rich text, code snippets, and structured data.
+  - Multi-line input with automatic expansion for better writing.
+  - Drag-and-drop support for **images, documents, and videos**.
+  - Telegram-style image previews and global message search.
+- **📁 Advanced Session Management**: Create, rename, and **drag-and-order** character sessions in the sidebar.
+- **⚙️ Enterprise-Ready Deployment**:
+  - One-click installation with automatic dependency resolution.
+  - Native `systemd` integration for auto-start and background management.
+  - Isolated database and file storage for maximum data integrity.
 
 ### 🛠️ Tech Stack
 
@@ -69,24 +63,18 @@ cd ~/OpenClaw-Chat-Gateway && chmod +x uninstall.sh && ./uninstall.sh
 
 ### ✨ 核心功能
 
-- **🚀 高级聊天界面**：
-  - 类 Telegram 的图片预览。
-  - 支持多行文本输入，高度自适应。
-  - 支持文件和图片的拖拽上传。
-  - 消息引用与全局搜索功能。
-- **📁 会话管理**：
-  - 创建并管理多个角色会话。
-  - 侧边栏支持**拖拽排序**。
-- **🛡️ 安全隔离**：
-  - 独立的数据库与上传文件夹，确保数据纯净。
-- **⚙️ 强大设置**：
-  - 强制网关连接测试，确保配置正确后方可保存。
-  - 自定义 AI 名称。
-  - 域名白名单管理，适配反向代理安全环境。
-  - 可选的登录密码保护。
-- **🤖 系统集成**：
-  - 原生支持 `systemd` 用户服务，实现开机自启。
-  - 提供一键部署脚本，**支持自定义端口**。
+- **🚀 直连 OpenClaw 通信**：完全取代 TG 等第三方聊天工具。直接与您的 OpenClaw 实例连接，实现无缝沟通。
+- **🤖 原生指令支持**：支持所有 OpenClaw 原生指令（如 `/status`、`/help`），直接在对话框输入即可。
+- **📸 完整聊天体验**：
+  - 完美支持 **Markdown** 格式，包括代码高亮、表格及富文本。
+  - 多行输入框，随内容自动调整高度，丝滑输入。
+  - 支持 **图片、文档、视频** 的拖拽发送。
+  - 类 Telegram 的图片预览系统及全局消息搜索。
+- **📁 高级会话管理**：创建并管理多个角色会话，侧边栏支持**拖拽排序**。
+- **⚙️ 生产级部署方案**：
+  - 一键式安装脚本，自动处理所有依赖。
+  - 原生 `systemd` 集成，开机自启，后台稳定运行。
+  - 独立的数据库与文件存储，确保数据安全隔离。
 
 ### 🛠️ 技术栈
 
@@ -117,4 +105,3 @@ curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/ma
 ```bash
 cd ~/OpenClaw-Chat-Gateway && chmod +x uninstall.sh && ./uninstall.sh
 ```
-
