@@ -15,9 +15,13 @@ echo "Project Path:  $PROJECT_ROOT"
 echo "Backend Port:  $BACKEND_PORT"
 echo "Frontend Port: $FRONTEND_PORT"
 
-echo "Building projects..."
+echo "Installing dependencies..."
 cd "$PROJECT_ROOT"
 npm install
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
+
+echo "Building projects..."
 npm run build
 
 echo "Setting up systemd services..."
