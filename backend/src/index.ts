@@ -175,6 +175,7 @@ app.get('/api/config', (_req, res) => {
     loginEnabled: config.loginEnabled || false,
     loginPassword: config.loginPassword || '123456',
     allowedHosts: config.allowedHosts || [],
+    openclawWorkspace: config.openclawWorkspace || '',
   });
 });
 
