@@ -7,10 +7,12 @@ SERVICE_DIR="$HOME/.config/systemd/user"
 
 # Default Port
 CLAWUI_PORT=${1:-3115}
+SERVICE_NAME="clawui-${CLAWUI_PORT}"
 
 echo "Deploying OpenClaw Chat Gateway (Consolidated)..."
 echo "Project Path:  $PROJECT_ROOT"
 echo "Service Port:  $CLAWUI_PORT"
+echo "Service Name:  $SERVICE_NAME"
 
 echo "Installing dependencies..."
 cd "$PROJECT_ROOT"
@@ -24,24 +26,28 @@ npm run build
 echo "Setting up systemd service..."
 mkdir -p "$SERVICE_DIR"
 
-# Clean up old services if they exist
-systemctl --user stop clawui-backend.service clawui-frontend.service 2>/dev/null || true
-systemctl --user disable clawui-backend.service clawui-frontend.service 2>/dev/null || true
-rm -f "$SERVICE_DIR/clawui-backend.service" "$SERVICE_DIR/clawui-frontend.service"
+# Clean up old services if they exist (legacy single service name)
+if [ "$CLAWUI_PORT" == "3115" ] && [ -f "$SERVICE_DIR/clawui.service" ]; then
+    echo "Transitioning from legacy clawui.service to $SERVICE_NAME.service..."
+    systemctl --user stop clawui.service 2>/dev/null || true
+    systemctl --user disable clawui.service 2>/dev/null || true
+    rm -f "$SERVICE_DIR/clawui.service"
+fi
 
 # Copy and update the consolidated service file
-cp "$PROJECT_ROOT/clawui.service" "$SERVICE_DIR/"
+cp "$PROJECT_ROOT/clawui.service" "$SERVICE_DIR/$SERVICE_NAME.service"
 
-# Update WorkingDirectory and Port in the service file
-sed -i "s|WorkingDirectory=.*|WorkingDirectory=$PROJECT_ROOT/backend|" "$SERVICE_DIR/clawui.service"
-sed -i "s/Environment=PORT=.*/Environment=PORT=$CLAWUI_PORT/" "$SERVICE_DIR/clawui.service"
+# Update WorkingDirectory, Port, and Description in the service file
+sed -i "s|WorkingDirectory=.*|WorkingDirectory=$PROJECT_ROOT/backend|" "$SERVICE_DIR/$SERVICE_NAME.service"
+sed -i "s/Environment=PORT=.*/Environment=PORT=$CLAWUI_PORT/" "$SERVICE_DIR/$SERVICE_NAME.service"
+sed -i "s/Description=.*/Description=ClawUI Service (Port $CLAWUI_PORT)/" "$SERVICE_DIR/$SERVICE_NAME.service"
 
 echo "Reloading systemd daemon..."
 systemctl --user daemon-reload
 
-echo "Enabling and starting service..."
-systemctl --user enable clawui.service
-systemctl --user restart clawui.service
+echo "Enabling and starting service $SERVICE_NAME..."
+systemctl --user enable "$SERVICE_NAME.service"
+systemctl --user restart "$SERVICE_NAME.service"
 
 # Ensure services stay running after logout
 echo "Enabling lingering for user $(whoami)..."
@@ -58,4 +64,4 @@ echo "Deployment complete!"
 echo "Local Access:   http://localhost:$CLAWUI_PORT"
 echo "Network Access: http://$LOCAL_IP:$CLAWUI_PORT"
 echo "------------------------------------------------"
-echo "Check status with: systemctl --user status clawui"
+echo "Check status with: systemctl --user status $SERVICE_NAME"

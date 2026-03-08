@@ -22,6 +22,8 @@
   - Multi-line input with automatic expansion for better writing.
   - Drag-and-drop support for **images, documents, and videos**.
   - Telegram-style image previews and global message search.
+  - **Message Management**: Delete individual messages with high-quality custom confirmation modals.
+  - **Conversation Flow**: Intelligent date dividers for multi-day conversations.
 - **📁 Advanced Session Management**: Create, rename, and **drag-and-order** character sessions in the sidebar.
 - **🛡️ Secure Access Control**:
   - **Login Password Protection**: Optional password gate to secure your gateway access.
@@ -85,6 +87,8 @@ curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/ma
   - 多行输入框，随内容自动调整高度，丝滑输入。
   - 支持 **图片、文档、视频** 的拖拽发送。
   - 类 Telegram 的图片预览系统及全局消息搜索。
+  - **消息管理**：支持单条消息删除，配备高颜值的自定义确认弹窗。
+  - **对话流优化**：自动插入跨天日期分割线，聊天脉络更清晰。
 - **📁 高级会话管理**：创建并管理多个角色会话，侧边栏支持**拖拽排序**。
 - **🛡️ 安全访问控制**：
   - **安全登录密码**：可选的密码验证机制，全面保护您的网关访问安全。
