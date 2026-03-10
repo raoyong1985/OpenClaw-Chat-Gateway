@@ -895,7 +895,8 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
           {settingsTab === 'models' && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">添加模型</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">添加模型</h3>
+                <p className="text-sm text-gray-500 mb-6">选择端点并输入模型 ID 来添加新模型到 openclaw.json 配置中。</p>
                 
                 {modelError && (
                   <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-2">
@@ -963,15 +964,16 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">现有模型列表</h3>
-                <div className="bg-white border text-sm border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">现有模型列表</h3>
+                <p className="text-sm text-gray-500 mb-4">悬停列可进行编辑别名、设为默认或删除操作。</p>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">模型 ID</th>
-                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">别名</th>
-                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap w-24">状态</th>
-                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap text-right w-24">操作</th>
+                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap text-sm">模型 ID</th>
+                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap text-sm">别名</th>
+                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap w-24 text-sm">状态</th>
+                        <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap text-right w-32 text-sm">操作</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -983,8 +985,8 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                         </tr>
                       ) : (
                         models.map((model) => (
-                          <tr key={model.id} className={`hover:bg-gray-50/50 transition-colors ${editingModelId === model.id ? 'bg-blue-50/30' : 'group'}`}>
-                            <td className="px-4 py-3 font-mono text-xs text-gray-700">{model.id}</td>
+                          <tr key={model.id} className={`hover:bg-gray-50/50 transition-colors text-base ${editingModelId === model.id ? 'bg-blue-50/30' : 'group'}`}>
+                            <td className="px-4 py-4 text-gray-700">{model.id}</td>
                             <td className="px-4 py-3 text-gray-600">
                               {editingModelId === model.id ? (
                                 <input
