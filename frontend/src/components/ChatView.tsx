@@ -461,11 +461,18 @@ export default function ChatView({ isConnected, activeSessionId, onMenuClick, se
       };
 
       const assistantId = (Date.now() + 1).toString();
+      // Snapshot the current model at send time so the badge doesn't change if the model switches later
+      const currentSession = sessions.find(s => s.id === activeSessionId);
+      const snapshotModel = currentSession?.model || currentModel || undefined;
+      const snapshotAgentName = currentSession?.name || activeSessionName || undefined;
+
       setMessages(prev => [...prev, userMessage, {
         id: assistantId,
         role: 'assistant' as const,
         content: '',
         timestamp: new Date(),
+        model: snapshotModel,
+        agentName: snapshotAgentName,
       }]);
 
       const response = await fetch('/api/chat', {
@@ -600,11 +607,16 @@ export default function ChatView({ isConnected, activeSessionId, onMenuClick, se
       timestamp: new Date(),
     };
     const assistantId = (Date.now() + 1).toString();
+    const qcSession = sessions.find(s => s.id === activeSessionId);
+    const qcSnapshotModel = qcSession?.model || currentModel || undefined;
+    const qcSnapshotAgentName = qcSession?.name || activeSessionName || undefined;
     setMessages(prev => [...prev, userMessage, {
       id: assistantId,
       role: 'assistant' as const,
       content: '',
       timestamp: new Date(),
+      model: qcSnapshotModel,
+      agentName: qcSnapshotAgentName,
     }]);
 
     try {
