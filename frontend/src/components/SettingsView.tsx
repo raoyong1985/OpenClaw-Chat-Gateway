@@ -966,7 +966,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">现有模型列表</h3>
                 <p className="text-sm text-gray-500 mb-4">悬停列可进行编辑别名、设为默认或删除操作。</p>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
