@@ -79,6 +79,8 @@ function ZoomableWrapper({ children, center = false }: { children: React.ReactNo
         onZoom={(ref) => setIsZoomed(ref.state.scale > 1)}
         onZoomStop={(ref) => setIsZoomed(ref.state.scale > 1)}
         onInit={(ref) => setIsZoomed(ref.state.scale > 1)}
+        // `TransformWrapper` renders a hidden dom element that wraps `TransformComponent`.
+        // By default it grows to `max-content`. Adding basic dimension constraint via CSS.
       >
         <TransformComponent 
           wrapperStyle={{ 
@@ -130,8 +132,11 @@ function PdfCanvasViewer({ pdfUrl }: { pdfUrl: string }) {
           const baseViewport = page.getViewport({ scale: 1 });
           const dpr = window.devicePixelRatio || 1;
           const fitScale = containerWidth / baseViewport.width;
-          // Render at 2x the display size to provide buffer for pinch-to-zoom
-          const renderScale = fitScale * dpr * 2;
+          
+          const isMobile = window.innerWidth <= 768;
+          // Drastically cap render scale on mobile to prevent iOS Safari memory crashes (canvas limits)
+          // 1.5x gives decent text clarity without blowing the RAM budget per page
+          const renderScale = fitScale * (isMobile ? Math.min(dpr, 1.5) : dpr * 2);
           
           const viewport = page.getViewport({ scale: renderScale });
 

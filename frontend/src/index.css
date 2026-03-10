@@ -51,3 +51,9 @@ a:disabled {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Fix react-zoom-pan-pinch wrapper overflowing flex containers on mobile */
+.react-transform-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
