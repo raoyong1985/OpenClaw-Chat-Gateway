@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/file_preview.png" width="100%" />
+<img width="1014" height="620" alt="PixPin_2026-03-10_18-49-55" src="https://github.com/user-attachments/assets/efdb14cb-c2cf-4e2d-9df7-5b5e30db9161" />
 </p>
 
 # OpenClaw Chat Gateway
