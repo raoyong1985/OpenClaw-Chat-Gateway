@@ -1,10 +1,12 @@
+<p align="center">
+  <img src="docs/screenshots/desktop_chat.png" width="100%" />
+</p>
+
 # OpenClaw Chat Gateway
 
 **现代化、生产级的 OpenClaw 全功能 Web 客户端**
 
 [简体中文](#简体中文) | [English](#english)
-
-![Desktop Preview](docs/screenshots/desktop_chat.png)
 
 ---
 
