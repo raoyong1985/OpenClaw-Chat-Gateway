@@ -14,6 +14,8 @@ NC='\033[0m' # No Color
 
 # 探测安装目录和数据目录
 SERVICE_DIR="$HOME/.config/systemd/user"
+DB_PATH="$HOME/.clawui/clawui.sqlite"
+WORKSPACE_BASE="$HOME/.openclaw"
 SERVICES=$(ls $SERVICE_DIR/clawui-*.service 2>/dev/null || true)
 if [ -f "$SERVICE_DIR/clawui.service" ]; then
     SERVICES="$SERVICES $SERVICE_DIR/clawui.service"
@@ -22,28 +24,44 @@ fi
 DETECTED_DIRS=""
 for S_PATH in $SERVICES; do
     W_DIR=$(grep "^WorkingDirectory=" "$S_PATH" | cut -d'=' -f2 | sed 's/ /\\ /g')
-    # 处理后端目录，通常安装在父目录
     P_DIR=$(dirname "$W_DIR")
     if [ -d "$P_DIR" ]; then
         DETECTED_DIRS="$DETECTED_DIRS $P_DIR"
     fi
 done
 
-# 如果通过当前目录运行，也加入探测
 if [ -f "./uninstall.sh" ]; then
     DETECTED_DIRS="$DETECTED_DIRS $(pwd)"
 fi
 
-# 去重并格式化
 CLEAN_DIRS=$(echo "$DETECTED_DIRS $INSTALL_DIR" | tr ' ' '\n' | sort -u | grep -v "^$" || true)
+
+# 动态探测工作区
+TARGET_WORKSPACES=""
+if [ -f "$DB_PATH" ] && command -v sqlite3 &>/dev/null; then
+    AGENT_IDS=$(sqlite3 "$DB_PATH" "SELECT DISTINCT agentId FROM characters;" 2>/dev/null || true)
+    for id in $AGENT_IDS; do
+        if [ "$id" == "main" ]; then
+            TARGET_WORKSPACES="$TARGET_WORKSPACES $WORKSPACE_BASE/workspace-main"
+        else
+            TARGET_WORKSPACES="$TARGET_WORKSPACES $WORKSPACE_BASE/workspace-$id"
+        fi
+    done
+else
+    # 基础回退方案
+    TARGET_WORKSPACES="$WORKSPACE_BASE/workspace-main"
+fi
+# 去重
+TARGET_WORKSPACES=$(echo "$TARGET_WORKSPACES" | tr ' ' '\n' | sort -u | grep -v "^$" || true)
 
 # 确认卸载
 echo -e "${RED}警告: 这将停止所有相关服务并删除以下内容:${NC}"
 for d in $CLEAN_DIRS; do
     echo -e " - $d (项目文件)"
 done
-echo -e " - $HOME/.openclaw/workspace-main (工作区)"
-echo -e " - $HOME/.openclaw/workspace-agent_* (所有由本项目创建的代理工作区)"
+for ws in $TARGET_WORKSPACES; do
+    [ -d "$ws" ] && echo -e " - $ws (工作区)"
+done
 echo -e " - $HOME/.clawui (本项目专用数据库及运行时数据)"
 [ -d "$HOME/.clawui_release" ] && echo -e " - ~/.clawui_release (旧版数据)"
 echo ""
@@ -69,10 +87,13 @@ systemctl --user daemon-reload
 
 # 移除数据和日志
 echo -e "\n${BLUE}步骤 2: 正在清理本项目相关的数据和设置...${NC}"
-# 仅删除本项目创建的特定目录，保留 .openclaw 其他内容
-rm -rf "$HOME/.openclaw/workspace-main"
-# 使用 find 匹配并删除 workspace-agent_* 目录（如果有的话）
-find "$HOME/.openclaw" -maxdepth 1 -name "workspace-agent_*" -type d -exec rm -rf {} + 2>/dev/null || true
+# 清除探测到的工作区
+for ws in $TARGET_WORKSPACES; do
+    if [ -d "$ws" ]; then
+        rm -rf "$ws"
+        echo "已删除工作区: $ws"
+    fi
+done
 
 rm -rf "$HOME/.clawui"
 rm -rf "$HOME/.clawui_release"
