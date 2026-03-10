@@ -3,6 +3,7 @@ import { X, Download, Loader2 } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import * as pdfjsLib from 'pdfjs-dist';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { getFileIconInfo } from '../utils/fileUtils';
 
 // Configure pdf.js worker
@@ -60,95 +61,23 @@ function extractPathParam(url: string): string | null {
   }
 }
 
-// Zoomable Wrapper for mobile pinch-to-zoom
+// Zoomable Wrapper for mobile pinch-to-zoom using react-zoom-pan-pinch
 function ZoomableWrapper({ children, center = false }: { children: React.ReactNode, center?: boolean }) {
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-  const startDist = useRef<number>(0);
-  const startScale = useRef<number>(1);
-  const lastTouch = useRef<{ x: number, y: number } | null>(null);
-  const lastTap = useRef<number>(0);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].pageX - e.touches[1].pageX,
-        e.touches[0].pageY - e.touches[1].pageY
-      );
-      startDist.current = dist;
-      startScale.current = scale;
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - lastTap.current < 300) {
-        const newScale = scale === 1 ? 2 : 1;
-        setScale(newScale);
-        setTranslate({ x: 0, y: 0 });
-      }
-      lastTap.current = now;
-      lastTouch.current = { x: e.touches[0].pageX, y: e.touches[0].pageY };
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && startDist.current > 0) {
-      // Pinch to zoom - prevent default to stop browser from zooming/scrolling
-      if (e.cancelable) e.preventDefault();
-      const dist = Math.hypot(
-        e.touches[0].pageX - e.touches[1].pageX,
-        e.touches[0].pageY - e.touches[1].pageY
-      );
-      const newScale = Math.min(Math.max(startScale.current * (dist / startDist.current), 1), 4);
-      setScale(newScale);
-      if (newScale === 1) setTranslate({ x: 0, y: 0 });
-    } else if (e.touches.length === 1 && scale > 1 && lastTouch.current) {
-      // Single finger panning - prevent default to stop native scrolling when zoomed
-      if (e.cancelable) e.preventDefault();
-      const touch = e.touches[0];
-      const dx = touch.pageX - lastTouch.current.x;
-      const dy = touch.pageY - lastTouch.current.y;
-      
-      setTranslate(prev => ({
-        x: prev.x + dx / scale,
-        y: prev.y + dy / scale
-      }));
-      
-      lastTouch.current = { x: touch.pageX, y: touch.pageY };
-    }
-    // If scale === 1 and touches === 1, we don't preventDefault, allowing native scrolling
-  };
-
-  const handleTouchEnd = () => {
-    startDist.current = 0;
-    lastTouch.current = null;
-  };
-
-  const isZoomed = scale > 1;
-
   return (
-    <div 
-      ref={containerRef}
-      className={`w-full h-full flex flex-col items-center ${center ? 'justify-center' : 'justify-start'} ${isZoomed ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}
-      style={{ 
-        touchAction: isZoomed ? 'none' : 'pan-y',
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeLegibility'
-      }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div 
-        className={`transition-transform duration-100 ease-out origin-top flex-shrink-0 flex flex-col items-center ${isZoomed ? 'will-change-transform' : ''}`}
-        style={{ 
-          transform: isZoomed ? `scale(${scale}) translate(${Math.round(translate.x)}px, ${Math.round(translate.y)}px)` : 'none', 
-          width: '100%',
-          minHeight: center ? 'auto' : '100%' 
-        }}
+    <div className={`w-full h-full flex flex-col ${center ? 'items-center justify-center' : 'items-start justify-start'} overflow-hidden`}>
+      <TransformWrapper
+        initialScale={1}
+        minScale={1}
+        maxScale={4}
+        centerOnInit={center}
+        wheel={{ step: 0.1 }}
+        doubleClick={{ step: 0.5 }}
+        panning={{ velocityDisabled: true }} // Prevent flying off screen
       >
-        {children}
-      </div>
+        <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', minHeight: center ? 'auto' : '100%' }}>
+          {children}
+        </TransformComponent>
+      </TransformWrapper>
     </div>
   );
 }
