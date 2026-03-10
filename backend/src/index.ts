@@ -711,7 +711,8 @@ app.post('/api/chat', async (req, res) => {
     // Resolve agent name and model for per-message snapshot
     const allCharacters = db.getCharacters();
     const character = allCharacters.find(c => c.agentId === agentId);
-    const agentName = character?.name || agentId;
+    // Fallback priority: character display name → session name → agentId
+    const agentName = character?.name || sessionInfo?.name || agentId;
     const modelUsed = agentProvisioner.readAgentModel(agentId) ||
       agentProvisioner.readAvailableModels().find(m => m.primary)?.id || '';
 
