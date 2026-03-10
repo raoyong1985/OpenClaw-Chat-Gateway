@@ -63,6 +63,8 @@ function extractPathParam(url: string): string | null {
 
 // Zoomable Wrapper for mobile pinch-to-zoom using react-zoom-pan-pinch
 function ZoomableWrapper({ children, center = false }: { children: React.ReactNode, center?: boolean }) {
+  const [isZoomed, setIsZoomed] = useState(false);
+
   return (
     <div className={`w-full h-full flex flex-col ${center ? 'items-center justify-center' : 'items-start justify-start'} overflow-hidden`}>
       <TransformWrapper
@@ -72,9 +74,21 @@ function ZoomableWrapper({ children, center = false }: { children: React.ReactNo
         centerOnInit={center}
         wheel={{ step: 0.1 }}
         doubleClick={{ step: 0.5 }}
-        panning={{ velocityDisabled: true }} // Prevent flying off screen
+        panning={{ disabled: !isZoomed, velocityDisabled: true }} // Disable JS pan when unzoomed to restore native 1-finger scroll
+        alignmentAnimation={{ animationTime: 200 }}
+        onZoom={(ref) => setIsZoomed(ref.state.scale > 1)}
+        onZoomStop={(ref) => setIsZoomed(ref.state.scale > 1)}
+        onInit={(ref) => setIsZoomed(ref.state.scale > 1)}
       >
-        <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', minHeight: center ? 'auto' : '100%' }}>
+        <TransformComponent 
+          wrapperStyle={{ 
+            width: '100%', 
+            height: '100%', 
+            overflowY: isZoomed ? 'hidden' : 'auto', // Native scroll when unzoomed
+            overflowX: 'hidden' 
+          }} 
+          contentStyle={{ width: '100%', minHeight: center ? 'auto' : '100%' }}
+        >
           {children}
         </TransformComponent>
       </TransformWrapper>
