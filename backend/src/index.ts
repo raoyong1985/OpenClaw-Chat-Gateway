@@ -406,7 +406,7 @@ app.post('/api/models/test', async (req, res) => {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const resp = await fetch(testUrl, {
