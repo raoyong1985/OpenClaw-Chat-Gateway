@@ -332,7 +332,7 @@ export default function Sidebar({
             onClick={() => navigateTo(currentView, settingsTab, false)} 
           />
         )}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex-shrink-0 flex-col border-r border-gray-300 bg-gray-100 h-full transition-transform duration-300 md:relative md:translate-x-0 md:flex ${isMobileMenuOpen ? 'translate-x-0 flex' : '-translate-x-full hidden'}`}>
+        <aside className={`fixed inset-y-0 left-0 z-50 w-[75vw] md:w-64 flex-shrink-0 flex-col border-r border-gray-300 bg-gray-100 h-full transition-transform duration-300 md:relative md:translate-x-0 md:flex ${isMobileMenuOpen ? 'translate-x-0 flex' : '-translate-x-full hidden'}`}>
           <SidebarHeader />
         <nav className="flex-1 px-4 py-2 space-y-1">
           <button 
@@ -396,7 +396,7 @@ export default function Sidebar({
           onClick={() => navigateTo(currentView, settingsTab, false)} 
         />
       )}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 flex-shrink-0 flex-col border-r border-gray-300 bg-gray-100 h-full transition-transform duration-300 md:relative md:translate-x-0 md:flex ${isMobileMenuOpen ? 'translate-x-0 flex' : '-translate-x-full hidden'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[75vw] md:w-64 flex-shrink-0 flex-col border-r border-gray-300 bg-gray-100 h-full transition-transform duration-300 md:relative md:translate-x-0 md:flex ${isMobileMenuOpen ? 'translate-x-0 flex' : '-translate-x-full hidden'}`}>
         <SidebarHeader />
 
       <div className="px-4 pb-4">
