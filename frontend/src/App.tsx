@@ -8,9 +8,13 @@ export type ViewType = 'chat' | 'settings';
 export type SettingsTab = 'gateway' | 'general' | 'models' | 'commands' | 'about';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewType>('chat');
+  const [currentView, setCurrentView] = useState<ViewType>(() => {
+    return (localStorage.getItem('clawui_current_view') as ViewType) || 'chat';
+  });
   const [isConnected, setIsConnected] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('gateway');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => {
+    return (localStorage.getItem('clawui_settings_tab') as SettingsTab) || 'gateway';
+  });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null = checking
   const [activeSessionId, setActiveSessionId] = useState<string>(() => {
     return localStorage.getItem('clawui_active_session') || '';
@@ -60,6 +64,12 @@ export default function App() {
       localStorage.setItem('clawui_active_session', activeSessionId);
     }
   }, [activeSessionId]);
+
+  // Sync view state to localStorage
+  useEffect(() => {
+    localStorage.setItem('clawui_current_view', currentView);
+    localStorage.setItem('clawui_settings_tab', settingsTab);
+  }, [currentView, settingsTab]);
 
   const reloadSessions = async () => {
     try {
