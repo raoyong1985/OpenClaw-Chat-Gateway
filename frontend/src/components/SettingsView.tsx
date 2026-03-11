@@ -78,7 +78,8 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
-  const [individualTestStatus, setIndividualTestStatus] = useState<Record<string, {status: 'testing' | 'success' | 'error', message: string}>>({});
+  const [showOnlyConnected, setShowOnlyConnected] = useState(false);
+  const [individualTestStatus, setIndividualTestStatus] = useState<Record<string, { status: 'testing'|'success'|'error', message?: string }>>({});
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1783,41 +1784,117 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                 </div>
 
                 {isModelDropdownOpen && (discoveredModels.length > 0 || isDiscovering) && (
-                  <div className="absolute z-50 left-0 right-0 top-[80px] bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[250px] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/95 backdrop-blur">
-                      <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        发现的模型 ({discoveredModels.length})
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleTestAllFiltered(); }}
-                        className="text-xs flex items-center gap-1 text-indigo-700 font-medium hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1.5 rounded-md transition-colors border border-indigo-100"
-                      >
-                        一键检测过滤项
-                      </button>
+                  <div className="absolute z-50 left-0 right-0 top-[80px] bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[350px] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex flex-col gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/95 backdrop-blur">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          发现的模型 ({discoveredModels.length})
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowOnlyConnected(!showOnlyConnected); }}
+                            className={`text-xs flex items-center gap-1 font-medium px-2 py-1.5 rounded-md transition-colors border ${
+                              showOnlyConnected 
+                                ? 'text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 border-green-200'
+                                : 'text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 border-gray-200'
+                            }`}
+                          >
+                            {showOnlyConnected ? '显示全部模型' : '仅显示已联通'}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleTestAllFiltered(); }}
+                            className="text-xs flex items-center gap-1 text-indigo-700 font-medium hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1.5 rounded-md transition-colors border border-indigo-100"
+                          >
+                            一键检测过滤项
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1 border-t border-gray-100/60 mt-0.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const visibleDiscoveredModels = discoveredModels.filter(m => {
+                              if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
+                              return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
+                            });
+                            const toAdd = visibleDiscoveredModels.filter(m => !existingModelIds.has(`${newModelEndpoint.trim()}/${m}`));
+                            setSelectedModels(prev => Array.from(new Set([...prev, ...toAdd])));
+                            setNewModelName('');
+                          }}
+                          className="text-xs text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors border border-gray-200 font-medium bg-gradient-to-b from-white to-gray-50 shadow-sm"
+                        >
+                          全选
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const visibleDiscoveredModels = discoveredModels.filter(m => {
+                              if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
+                              return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
+                            });
+                            const validVisible = visibleDiscoveredModels.filter(m => !existingModelIds.has(`${newModelEndpoint.trim()}/${m}`));
+                            setSelectedModels(prev => {
+                              const prevSet = new Set(prev);
+                              const newSelected = new Set(prev);
+                              validVisible.forEach(m => {
+                                if (prevSet.has(m)) newSelected.delete(m);
+                                else newSelected.add(m);
+                              });
+                              return Array.from(newSelected);
+                            });
+                            setNewModelName('');
+                          }}
+                          className="text-xs text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors border border-gray-200 font-medium bg-gradient-to-b from-white to-gray-50 shadow-sm"
+                        >
+                          反选
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const visibleDiscoveredModels = discoveredModels.filter(m => {
+                              if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
+                              return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
+                            });
+                            const visibleSet = new Set(visibleDiscoveredModels);
+                            setSelectedModels(prev => prev.filter(m => !visibleSet.has(m)));
+                          }}
+                          className="text-xs text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors border border-gray-200 font-medium bg-gradient-to-b from-white to-gray-50 shadow-sm"
+                        >
+                          取消选择
+                        </button>
+                      </div>
                     </div>
                     
-                    <div className="overflow-y-auto flex-1 p-1.5 space-y-0.5">
+                    <div className="overflow-y-auto flex-1 p-1.5 space-y-0.5 min-h-[100px]">
                       {isDiscovering && discoveredModels.length === 0 && (
                         <div className="py-8 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3">
                           <Loader2 className="w-6 h-6 animate-spin text-blue-500" /> 
                           正在联机拉取端点模型列表...
                         </div>
                       )}
-                      {!isDiscovering && discoveredModels.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase())).length === 0 && (
-                          <div className="py-8 text-center text-gray-400 text-sm">
-                            未能找到匹配 "{modelSearchQuery}" 的模型
-                          </div>
-                      )}
+                      {(() => {
+                        const visibleDiscoveredModels = discoveredModels.filter(m => {
+                          if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
+                          return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
+                        });
+                        
+                        if (!isDiscovering && visibleDiscoveredModels.length === 0) {
+                          return (
+                            <div className="py-8 text-center text-gray-400 text-sm">
+                              未能找到匹配 "{modelSearchQuery}" 的模型
+                            </div>
+                          );
+                        }
 
-                      {discoveredModels.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase())).map(m => {
-                        const isExisting = existingModelIds.has(`${newModelEndpoint.trim()}/${m}`);
-                        const testData = individualTestStatus[m];
-                        const isSelected = selectedModels.includes(m);
+                        return visibleDiscoveredModels.map(m => {
+                          const isExisting = existingModelIds.has(`${newModelEndpoint.trim()}/${m}`);
+                          const testData = individualTestStatus[m];
+                          const isSelected = selectedModels.includes(m);
 
-                        return (
-                          <div 
-                            key={m}
+                          return (
+                            <div 
+                              key={m}
                             className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
                               isExisting ? 'opacity-60 bg-gray-50/50 cursor-not-allowed' :
                               isSelected ? 'bg-blue-50/80 border-blue-100 font-medium cursor-pointer shadow-sm' : 'hover:bg-gray-100 cursor-pointer border-transparent'
@@ -1861,7 +1938,8 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                             )}
                           </div>
                         );
-                      })}
+                      });
+                    })()}
                     </div>
                   </div>
                 )}
