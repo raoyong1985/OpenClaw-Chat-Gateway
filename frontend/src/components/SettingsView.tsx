@@ -65,12 +65,36 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
   const [modelSuccessTimestamp, setModelSuccessTimestamp] = useState(0);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [editingAlias, setEditingAlias] = useState('');
+  const [testModelStatus, setTestModelStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [testModelMessage, setTestModelMessage] = useState('');
+  const [showForceAddModal, setShowForceAddModal] = useState(false);
   const editAliasInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Model Discovery State ---
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [individualTestStatus, setIndividualTestStatus] = useState<Record<string, {status: 'testing' | 'success' | 'error', message: string}>>({});
+  
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsModelDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // --- Endpoint Management State ---
   type EndpointConfig = { id: string; baseUrl: string; apiKey: string; api: string };
   const [endpoints, setEndpoints] = useState<EndpointConfig[]>([]);
   const [isEndpointModalOpen, setIsEndpointModalOpen] = useState(false);
+  const [isAddModelModalOpen, setIsAddModelModalOpen] = useState(false);
   const [editingEndpoint, setEditingEndpoint] = useState<EndpointConfig | null>(null);
   const [newEndpointData, setNewEndpointData] = useState<EndpointConfig>({ id: '', baseUrl: '', apiKey: '', api: 'openai-completions' });
 
@@ -129,6 +153,57 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
       if (data.success) setCommands(data.commands);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDiscoverModels = async (endpointId: string) => {
+    if (!endpointId) return;
+    setIsDiscovering(true);
+    setDiscoveredModels([]);
+    setSelectedModels([]);
+    setModelSearchQuery('');
+    setIndividualTestStatus({});
+    try {
+      const res = await fetch(`/api/models/discover?endpoint=${encodeURIComponent(endpointId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        setDiscoveredModels(data.models || []);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
+  const handleTestSingleModel = async (modelId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIndividualTestStatus(prev => ({...prev, [modelId]: { status: 'testing', message: '' }}));
+    try {
+      const res = await fetch('/api/models/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: newModelEndpoint.trim(), modelName: modelId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        setIndividualTestStatus(prev => ({...prev, [modelId]: { status: 'success', message: 'OK' }}));
+      } else {
+        setIndividualTestStatus(prev => ({...prev, [modelId]: { status: 'error', message: data.error || '失败' }}));
+      }
+    } catch (err: any) {
+      setIndividualTestStatus(prev => ({...prev, [modelId]: { status: 'error', message: '网络错误' }}));
+    }
+  };
+
+  const existingModelIds = new Set(models.map(m => m.id));
+
+  const handleTestAllFiltered = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const filtered = discoveredModels.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase()));
+    for (const m of filtered) {
+       if (existingModelIds.has(`${newModelEndpoint.trim()}/${m}`)) continue;
+       handleTestSingleModel(m); // Do it in parallel rather than blocking sequentially
     }
   };
 
@@ -403,33 +478,81 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
     setNewDescription(cmd.description);
   };
 
-  const handleAddModel = async () => {
+  const handleTestModel = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     if (!newModelEndpoint.trim() || !newModelName.trim()) {
-      setModelError('端点和模型名称不能为空');
+      setModelError('端点和模型名称不能为空以进行检测');
       setTimeout(() => setModelError(''), 3000);
-      return;
+      return false;
     }
-    setIsLoading(true);
+    setTestModelStatus('testing');
+    setTestModelMessage('正在检测模型连通性...');
     try {
-      const res = await fetch('/api/models/manage', {
+      const res = await fetch('/api/models/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           endpoint: newModelEndpoint.trim(),
-          modelName: newModelName.trim(),
-          alias: newModelAlias.trim() || undefined
-        }),
+          modelName: newModelName.trim()
+        })
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        setTestModelStatus('success');
+        setTestModelMessage(data.message || '模型有效连通');
+        setTimeout(() => setTestModelStatus('idle'), 3000);
+        return true;
+      } else {
+        setTestModelStatus('error');
+        setTestModelMessage(data.error || '连通性测试失败');
+        return false;
+      }
+    } catch (err: any) {
+      setTestModelStatus('error');
+      setTestModelMessage('检测过程发生网络错误');
+      return false;
+    }
+  };
+
+  const handleAddModel = async (force: boolean = false) => {
+    const targetModels = selectedModels.length > 0 ? selectedModels : [newModelName.trim()].filter(Boolean);
+    if (!newModelEndpoint.trim() || targetModels.length === 0) {
+      setModelError('端点和模型名称不能为空');
+      setTimeout(() => setModelError(''), 3000);
+      return;
+    }
+
+    // Single mode pre-validation fallback
+    if (!force && targetModels.length === 1 && selectedModels.length === 0) {
+      const isValid = await handleTestModel();
+      if (!isValid) {
+        setShowForceAddModal(true);
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    let successCount = 0;
+    try {
+      for (const modelId of targetModels) {
+        const res = await fetch('/api/models/manage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            endpoint: newModelEndpoint.trim(),
+            modelName: modelId,
+            alias: targetModels.length === 1 ? newModelAlias.trim() || undefined : undefined
+          }),
+        });
+        if (res.ok) successCount++;
+      }
+      
+      if (successCount > 0) {
         setNewModelEndpoint('');
         setNewModelName('');
         setNewModelAlias('');
-        fetchModels();
-        setModelSuccessTimestamp(Date.now());
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setModelError(data.error || '添加模型失败');
-        setTimeout(() => setModelError(''), 3000);
+        setSelectedModels([]);
+        setIsAddModelModalOpen(false);
       }
     } catch (err) {
       console.error(err);
@@ -1007,81 +1130,61 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               </div>
 
               {activeModelSubTab === 'models' && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">添加模型</h3>
-                <p className="text-sm text-gray-500 mb-6">选择端点并输入模型 ID 来添加新模型到 openclaw.json 配置中。</p>
-                
-                {modelError && (
-                  <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-2">
-                    <X className="w-4 h-4 shrink-0" />
-                    {modelError}
+                <div>
+                  <div className="flex justify-between items-start sm:items-center mb-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">模型管理</h3>
+                      <p className="text-sm text-gray-500">管理可用的 AI 模型，支持多提供商。</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                          setNewModelEndpoint('');
+                          setNewModelName('');
+                          setNewModelAlias('');
+                          setSelectedModels([]);
+                          setTestModelStatus('idle');
+                          setTestModelMessage('');
+                          setIsAddModelModalOpen(true);
+                      }}
+                      className="h-[40px] px-5 rounded-xl bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      添加模型
+                    </button>
                   </div>
-                )}
-                {modelSuccessTimestamp > 0 && Date.now() - modelSuccessTimestamp < 3000 && (
-                  <div className="mb-4 p-3 bg-green-50 text-green-600 text-sm rounded-xl border border-green-100 flex items-center gap-2 animate-in fade-in duration-300">
-                    <Check className="w-4 h-4 shrink-0" />
-                    操作成功，网关配置已更新
-                  </div>
-                )}
-
-                <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-200 mb-6">
-                  <div className="flex flex-col sm:flex-row gap-4 items-end">
-                    <div className="flex-1 w-full">
-                      <label className="block text-sm font-medium text-gray-900 mb-2">提供商端点 (Endpoint)</label>
-                      <input
-                        list="known-endpoints"
-                        type="text"
-                        value={newModelEndpoint}
-                        onChange={(e) => setNewModelEndpoint(e.target.value)}
-                        placeholder="例如: openai"
-                        className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
-                      />
-                      <datalist id="known-endpoints">
-                        {knownEndpoints.map(ep => (
-                          <option key={ep} value={ep} />
-                        ))}
-                      </datalist>
+                  
+                  {modelError && (
+                    <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-2">
+                      <X className="w-4 h-4 shrink-0" />
+                      {modelError}
                     </div>
-                    <div className="flex-1 w-full">
-                      <label className="block text-sm font-medium text-gray-900 mb-2">模型标识 (Model ID)</label>
-                      <input
-                        type="text"
-                        value={newModelName}
-                        onChange={(e) => setNewModelName(e.target.value)}
-                        placeholder="例如: gpt-5.4"
-                        className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
-                      />
+                  )}
+                  {modelSuccessTimestamp > 0 && Date.now() - modelSuccessTimestamp < 3000 && (
+                    <div className="mb-4 p-3 bg-green-50 text-green-600 text-sm rounded-xl border border-green-100 flex items-center gap-2 animate-in fade-in duration-300">
+                      <Check className="w-4 h-4 shrink-0" />
+                      操作成功，网关配置已更新
                     </div>
-                    <div className="flex-1 w-full">
-                      <label className="block text-sm font-medium text-gray-900 mb-2">显示别名 (可选)</label>
-                      <input
-                        type="text"
-                        value={newModelAlias}
-                        onChange={(e) => setNewModelAlias(e.target.value)}
-                        placeholder="例如: GPT 5.4"
-                        className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
-                      />
+                  )}
+                  {testModelStatus !== 'idle' && (
+                    <div className={`mb-4 p-3 text-sm rounded-xl border flex items-center gap-2 animate-in fade-in duration-300 ${
+                      testModelStatus === 'testing' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                      testModelStatus === 'success' ? 'bg-green-50 text-green-600 border-green-100' :
+                      'bg-red-50 text-red-600 border-red-100'
+                    }`}>
+                      {testModelStatus === 'testing' ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> :
+                      testModelStatus === 'success' ? <Check className="w-4 h-4 shrink-0" /> :
+                      <X className="w-4 h-4 shrink-0" />}
+                      {testModelMessage}
                     </div>
-                    <div className="flex w-full sm:w-auto gap-2">
-                      <button
-                        onClick={handleAddModel}
-                        disabled={isLoading || !newModelEndpoint.trim() || !newModelName.trim()}
-                        className="h-[42px] px-6 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all disabled:opacity-50 flex-1 sm:flex-none flex items-center justify-center gap-2"
-                      >
-                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        新增
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              </div>
               )}
 
               {activeModelSubTab === 'endpoints' && (
               <div>
                 <div className="flex justify-between items-start sm:items-center mb-6">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">端点管理</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">端点管理</h3>
                     <p className="text-sm text-gray-500">管理 API 服务提供商的连接设置，如 Base URL 和 API Key。</p>
                   </div>
                   <button
@@ -1164,7 +1267,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
 
               {activeModelSubTab === 'models' && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">现有模型列表</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">现有模型</h3>
                 <p className="text-sm text-gray-500 mb-4">按模型 ID 升序排列，悬停列可进行编辑别名、设为默认或删除操作。</p>
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <table className="w-full text-left border-collapse">
@@ -1254,60 +1357,60 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     title="删除"
                                   >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              )}
-            </div>
-          )}
-
-          {/* About System Tab */}
-
-          {settingsTab === 'about' && (
-            <div className="flex flex-col items-center justify-center min-h-[60vh]">
-              <div className="bg-white rounded-3xl border border-gray-200 p-10 w-full max-w-lg text-center flex flex-col items-center">
-                
-                {/* Logo Section */}
-                <div className="mb-6 w-max text-center flex flex-col items-center">
-                  <div className="text-[2.5rem] font-black text-[#1a1c1e] tracking-tight leading-tight mb-0.5">OpenClaw</div>
-                  <div className="text-[1.1rem] font-bold text-[#94a3b8] tracking-[0.35em] uppercase leading-tight">CHAT GATEWAY</div>
-                </div>
-
-                {/* Version Info */}
-                <div className="space-y-4 mb-8">
-                  <div className="text-2xl font-medium text-gray-800">Ver: 1.00</div>
-                  <div>
-                    <a href="#" className="text-[#3b82f6] hover:text-blue-700 font-medium text-lg transition-colors underline-offset-4 hover:underline">
-                      检查新版本
-                    </a>
+                              <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
+                )}
+              </div>
+            )}
 
-                {/* Author Info */}
-                <div className="text-xl font-medium text-gray-700 mb-10">
-                  安格视界 / AnGeWorld
-                </div>
+            {/* About System Tab */}
 
-                {/* Links Row */}
-                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 mb-6">
-                  <a 
-                    href="https://github.com/liandu2024/OpenClaw-Chat-Gateway" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-2 text-[#3b82f6] hover:text-blue-700 transition-colors group text-[13px] sm:text-[15px] font-medium"
-                  >
-                    <Github className="w-5 h-5 text-gray-900 group-hover:-translate-y-0.5 transition-transform" />
-                    <span>Github</span>
-                  </a>
+            {settingsTab === 'about' && (
+              <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                <div className="bg-white rounded-3xl border border-gray-200 p-10 w-full max-w-lg text-center flex flex-col items-center">
+                  
+                  {/* Logo Section */}
+                  <div className="mb-6 w-max text-center flex flex-col items-center">
+                    <div className="text-[2.5rem] font-black text-[#1a1c1e] tracking-tight leading-tight mb-0.5">OpenClaw</div>
+                    <div className="text-[1.1rem] font-bold text-[#94a3b8] tracking-[0.35em] uppercase leading-tight">CHAT GATEWAY</div>
+                  </div>
+
+                  {/* Version Info */}
+                  <div className="space-y-4 mb-8">
+                    <div className="text-2xl font-medium text-gray-800">Ver: 1.00</div>
+                    <div>
+                      <a href="#" className="text-[#3b82f6] hover:text-blue-700 font-medium text-lg transition-colors underline-offset-4 hover:underline">
+                        检查新版本
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Author Info */}
+                  <div className="text-xl font-medium text-gray-700 mb-10">
+                    安格视界 / AnGeWorld
+                  </div>
+
+                  {/* Links Row */}
+                  <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 mb-6">
+                    <a 
+                      href="https://github.com/liandu2024/OpenClaw-Chat-Gateway" 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="flex items-center gap-2 text-[#3b82f6] hover:text-blue-700 transition-colors group text-[13px] sm:text-[15px] font-medium"
+                    >
+                      <Github className="w-5 h-5 text-gray-900 group-hover:-translate-y-0.5 transition-transform" />
+                      <span>Github</span>
+                    </a>
                   <a 
                     href="https://t.me/angeworld2024" 
                     target="_blank" 
@@ -1481,6 +1584,273 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 保存端点
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* End of content */}
+
+      {isAddModelModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => setIsAddModelModalOpen(false)}></div>
+          <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl min-h-[400px] overflow-visible relative z-10 animate-in fade-in zoom-in-95 duration-200 shadow-xl flex flex-col">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">添加模型</h3>
+                <p className="text-xs text-gray-500 mt-1">选择端点并输入或选择模型 ID。可以一次选择多个。</p>
+              </div>
+              <button 
+                onClick={() => setIsAddModelModalOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="关闭"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5 flex-1 overflow-visible flex flex-col">
+              {modelError && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-2">
+                  <X className="w-4 h-4 shrink-0" />
+                  {modelError}
+                </div>
+              )}
+              {testModelStatus !== 'idle' && (
+                <div className={`p-3 text-sm rounded-xl border flex items-center gap-2 animate-in fade-in duration-300 ${
+                  testModelStatus === 'testing' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                  testModelStatus === 'success' ? 'bg-green-50 text-green-600 border-green-100' :
+                  'bg-red-50 text-red-600 border-red-100'
+                }`}>
+                  {testModelStatus === 'testing' ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> :
+                    testModelStatus === 'success' ? <Check className="w-4 h-4 shrink-0" /> :
+                    <X className="w-4 h-4 shrink-0" />}
+                  {testModelMessage}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-20">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    所属端点 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    list="known-endpoints"
+                    type="text"
+                    value={newModelEndpoint}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewModelEndpoint(val);
+                      handleDiscoverModels(val.trim());
+                    }}
+                    placeholder="例如: openai"
+                    className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
+                  />
+                  <datalist id="known-endpoints">
+                    {knownEndpoints.map(ep => (
+                      <option key={ep} value={ep} />
+                    ))}
+                  </datalist>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">别名（可选）</label>
+                  <input
+                    type="text"
+                    value={newModelAlias}
+                    onChange={(e) => setNewModelAlias(e.target.value)}
+                    placeholder="例如: GPT 4O"
+                    className="block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col relative z-10" ref={dropdownRef}>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  模型 ID <span className="text-red-500">*</span>
+                </label>
+                <div 
+                  className="relative cursor-pointer block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500/20 transition-all text-sm min-h-[46px] flex items-center gap-2 flex-wrap"
+                  onClick={() => {
+                    setIsModelDropdownOpen(true);
+                    if (discoveredModels.length === 0 && !isDiscovering) {
+                      handleDiscoverModels(newModelEndpoint.trim());
+                    }
+                  }}
+                >
+                  {selectedModels.length === 0 ? (
+                    <input
+                      type="text"
+                      value={newModelName}
+                      onChange={(e) => {
+                        setNewModelName(e.target.value);
+                        setModelSearchQuery(e.target.value);
+                      }}
+                      placeholder={isDiscovering ? '正在发现模型...' : (discoveredModels.length > 0 ? `已发现 ${discoveredModels.length} 个模型 (点击或输入搜索)` : '例如: gpt-4o (点击加载可用列表)')}
+                      className="bg-transparent border-none outline-none w-full text-sm placeholder-gray-400 py-1"
+                      onFocus={() => setIsModelDropdownOpen(true)}
+                    />
+                  ) : (
+                    <>
+                      {selectedModels.map(m => (
+                        <span key={m} className="bg-blue-100 border border-blue-200 text-blue-800 px-2.5 py-1 rounded-lg text-xs flex items-center gap-1.5 font-medium shadow-sm">
+                          {m}
+                          <X 
+                            className="w-3.5 h-3.5 cursor-pointer hover:text-blue-900 hover:bg-blue-200 rounded p-0.5 transition-colors" 
+                            onClick={(e) => { e.stopPropagation(); setSelectedModels(prev => prev.filter(x => x !== m)); }} 
+                          />
+                        </span>
+                      ))}
+                      <input
+                        type="text"
+                        value={modelSearchQuery}
+                        onChange={(e) => setModelSearchQuery(e.target.value)}
+                        placeholder="继续搜索..."
+                        className="bg-transparent border-none outline-none min-w-[100px] flex-1 text-sm placeholder-gray-400 py-1"
+                        onFocus={() => setIsModelDropdownOpen(true)}
+                      />
+                    </>
+                  )}
+                </div>
+
+                {isModelDropdownOpen && (discoveredModels.length > 0 || isDiscovering) && (
+                  <div className="absolute z-50 left-0 right-0 top-[80px] bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[250px] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/95 backdrop-blur">
+                      <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        发现的模型 ({discoveredModels.length})
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleTestAllFiltered(); }}
+                        className="text-xs flex items-center gap-1 text-indigo-700 font-medium hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1.5 rounded-md transition-colors border border-indigo-100"
+                      >
+                        一键检测过滤项
+                      </button>
+                    </div>
+                    
+                    <div className="overflow-y-auto flex-1 p-1.5 space-y-0.5">
+                      {isDiscovering && discoveredModels.length === 0 && (
+                        <div className="py-8 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3">
+                          <Loader2 className="w-6 h-6 animate-spin text-blue-500" /> 
+                          正在联机拉取端点模型列表...
+                        </div>
+                      )}
+                      {!isDiscovering && discoveredModels.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase())).length === 0 && (
+                          <div className="py-8 text-center text-gray-400 text-sm">
+                            未能找到匹配 "{modelSearchQuery}" 的模型
+                          </div>
+                      )}
+
+                      {discoveredModels.filter(m => m.toLowerCase().includes(modelSearchQuery.toLowerCase())).map(m => {
+                        const isExisting = existingModelIds.has(`${newModelEndpoint.trim()}/${m}`);
+                        const testData = individualTestStatus[m];
+                        const isSelected = selectedModels.includes(m);
+
+                        return (
+                          <div 
+                            key={m}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
+                              isExisting ? 'opacity-60 bg-gray-50/50 cursor-not-allowed' :
+                              isSelected ? 'bg-blue-50/80 border-blue-100 font-medium cursor-pointer shadow-sm' : 'hover:bg-gray-100 cursor-pointer border-transparent'
+                            } border`}
+                            onClick={(e) => {
+                              if (isExisting) return;
+                              e.preventDefault();
+                              if (isSelected) setSelectedModels(prev => prev.filter(x => x !== m));
+                              else {
+                                setSelectedModels(prev => [...prev, m]);
+                                setNewModelName('');
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden flex-1">
+                              <input 
+                                type="checkbox" 
+                                className="rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 w-4 h-4"
+                                checked={isSelected || isExisting}
+                                disabled={isExisting}
+                                readOnly
+                              />
+                              <span className={`truncate ${isSelected ? 'text-blue-900' : 'text-gray-700'}`} title={m}>{m}</span>
+                              {isExisting && <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full ml-1 shrink-0 font-medium">已在使用</span>}
+                            </div>
+
+                            {!isExisting && (
+                              <div className="flex items-center gap-2 shrink-0 ml-3 bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100" onClick={e => e.stopPropagation()}>
+                                {testData?.status === 'testing' && <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
+                                {testData?.status === 'success' && <span title="有效"><Check className="w-3.5 h-3.5 text-green-500" /></span>}
+                                {testData?.status === 'error' && <span title={testData.message}><X className="w-3.5 h-3.5 text-red-500" /></span>}
+                                
+                                <button 
+                                  onClick={(e) => handleTestSingleModel(m, e)}
+                                  className="text-xs text-gray-500 hover:text-indigo-600 px-1 py-0.5 rounded hover:bg-gray-100 transition-colors"
+                                  title="独立检测此模型"
+                                >
+                                  连通检测
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 bg-gray-50 flex gap-3 border-t border-gray-100 rounded-b-2xl justify-end">
+              <button
+                type="button"
+                onClick={() => setIsAddModelModalOpen(false)}
+                className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-xl font-semibold transition-all"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleTestModel}
+                disabled={testModelStatus === 'testing' || !newModelEndpoint.trim() || (!newModelName.trim() && selectedModels.length === 0)}
+                className="px-5 py-2.5 text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {testModelStatus === 'testing' ? <Loader2 className="w-4 h-4 animate-spin" /> : '检测模型'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddModel(false)}
+                disabled={isLoading || testModelStatus === 'testing' || !newModelEndpoint.trim() || (!newModelName.trim() && selectedModels.length === 0)}
+                className="px-6 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {selectedModels.length > 1 ? `批量添加 (${selectedModels.length})` : '确认添加'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showForceAddModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">模型连通性检测失败</h3>
+              <p className="text-sm text-gray-700 mb-6 bg-red-50 p-3 rounded-lg border border-red-100">{testModelMessage}</p>
+              <p className="text-sm text-gray-600 mb-6">该模型似乎无法正确访问。确定要强行将其加入系统吗？</p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowForceAddModal(false)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    setShowForceAddModal(false);
+                    handleAddModel(true);
+                  }}
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors cursor-pointer"
+                >
+                  强制添加
+                </button>
+              </div>
             </div>
           </div>
         </div>
