@@ -168,7 +168,7 @@ export default function App() {
         reorderSessions={reorderSessions}
         navigateTo={navigateTo}
       />
-      <main className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden md:relative md:z-[60]">
+      <main className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden md:overflow-visible md:relative md:z-[60]">
         {currentView === 'chat' ? (
           <ChatView 
             isConnected={isConnected} 
