@@ -1160,6 +1160,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                           setDiscoveredModels([]);
                           setModelSearchQuery('');
                           setIndividualTestStatus({});
+                          setShowOnlyConnected(false);
                           setModelError('');
                           setAddModelError('');
                           setIsAddModelModalOpen(true);
