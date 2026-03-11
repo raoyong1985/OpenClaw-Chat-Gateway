@@ -312,7 +312,7 @@ export default function Sidebar({
       <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2">
         <button 
           onClick={(e) => handleShowInfo(e, s)} 
-          className="p-1.5 bg-white text-blue-500 hover:bg-yellow-100 hover:text-yellow-600 rounded-lg transition-all shadow-sm border border-gray-200 hover:border-yellow-300"
+          className="p-1.5 bg-white text-blue-500 hover:bg-yellow-100 hover:text-yellow-600 rounded-lg transition-all"
           title="详情"
         >
           <Info className="w-4 h-4" />
