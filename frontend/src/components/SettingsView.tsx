@@ -532,19 +532,11 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
     }
   };
 
-  const handleAddModel = async (force: boolean = false) => {
+  const handleAddModel = async () => {
     if (!newModelEndpoint.trim() || !newModelName.trim()) {
       setAddModelError('端点和模型名称不能为空');
       setTimeout(() => setAddModelError(''), 3000);
       return;
-    }
-
-    if (!force) {
-      const isValid = await handleTestModel();
-      if (!isValid) {
-        setShowForceAddModal(true);
-        return;
-      }
     }
 
     setIsLoading(true);
@@ -1990,7 +1982,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               </button>
               <button
                 type="button"
-                onClick={() => handleAddModel(false)}
+                onClick={() => handleAddModel()}
                 disabled={isLoading || addModelTestStatus === 'testing' || !newModelEndpoint.trim() || !newModelName.trim()}
                 className="px-6 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
               >
@@ -2018,7 +2010,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                 <button
                   onClick={() => {
                     setShowForceAddModal(false);
-                    handleAddModel(true);
+                    handleAddModel();
                   }}
                   className="px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors cursor-pointer"
                 >
