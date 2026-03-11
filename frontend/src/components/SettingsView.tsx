@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Eye, EyeOff, Check, X, Loader2, Edit2, Trash2, Plus, Menu, Github, Send, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, EyeOff, Check, X, Loader2, Edit2, Trash2, Plus, Menu, Github, Send, ShoppingBag } from 'lucide-react';
 import { SettingsTab } from '../App';
 
 interface SettingsViewProps {
@@ -77,10 +77,8 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
   const [discoveredModels, setDiscoveredModels] = useState<string[]>([]);
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [showOnlyConnected, setShowOnlyConnected] = useState(false);
   const [individualTestStatus, setIndividualTestStatus] = useState<Record<string, { status: 'testing'|'success'|'error', message?: string }>>({});
-  const [isModelsExpanded, setIsModelsExpanded] = useState(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -164,7 +162,6 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
     if (!endpointId) return;
     setIsDiscovering(true);
     setDiscoveredModels([]);
-    setSelectedModels([]);
     setModelSearchQuery('');
     setIndividualTestStatus({});
     try {
@@ -519,15 +516,13 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
   };
 
   const handleAddModel = async (force: boolean = false) => {
-    const targetModels = selectedModels.length > 0 ? selectedModels : [newModelName.trim()].filter(Boolean);
-    if (!newModelEndpoint.trim() || targetModels.length === 0) {
+    if (!newModelEndpoint.trim() || !newModelName.trim()) {
       setModelError('端点和模型名称不能为空');
       setTimeout(() => setModelError(''), 3000);
       return;
     }
 
-    // Single mode pre-validation fallback
-    if (!force && targetModels.length === 1 && selectedModels.length === 0) {
+    if (!force) {
       const isValid = await handleTestModel();
       if (!isValid) {
         setShowForceAddModal(true);
@@ -536,28 +531,27 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
     }
 
     setIsLoading(true);
-    let successCount = 0;
     try {
-      for (const modelId of targetModels) {
-        const res = await fetch('/api/models/manage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            endpoint: newModelEndpoint.trim(),
-            modelName: modelId,
-            alias: targetModels.length === 1 ? newModelAlias.trim() || undefined : undefined
-          }),
-        });
-        if (res.ok) successCount++;
-      }
+      const res = await fetch('/api/models/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: newModelEndpoint.trim(),
+          modelName: newModelName.trim(),
+          alias: newModelAlias.trim() || undefined
+        }),
+      });
       
-      if (successCount > 0) {
+      if (res.ok) {
         setNewModelEndpoint('');
         setNewModelName('');
         setNewModelAlias('');
-        setSelectedModels([]);
         setIsAddModelModalOpen(false);
         fetchModels();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setModelError(data.error || '保存模型失败');
+        setTimeout(() => setModelError(''), 3000);
       }
     } catch (err) {
       console.error(err);
@@ -1146,7 +1140,6 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                           setNewModelEndpoint('');
                           setNewModelName('');
                           setNewModelAlias('');
-                          setSelectedModels([]);
                           setTestModelStatus('idle');
                           setTestModelMessage('');
                           setIsAddModelModalOpen(true);
@@ -1737,29 +1730,11 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               </div>
 
               <div className="flex-1 flex flex-col relative z-10" ref={dropdownRef}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-gray-900">
-                    模型 ID <span className="text-red-500">*</span>
-                  </label>
-                  {selectedModels.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsModelsExpanded(!isModelsExpanded);
-                      }}
-                      className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors px-2 py-0.5 rounded hover:bg-gray-100"
-                    >
-                      {isModelsExpanded ? (
-                        <><ChevronUp className="w-3.5 h-3.5" /> 收起</>
-                      ) : (
-                        <><ChevronDown className="w-3.5 h-3.5" /> 展开全部 ({selectedModels.length})</>
-                      )}
-                    </button>
-                  )}
-                </div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  模型 ID <span className="text-red-500">*</span>
+                </label>
                 <div 
-                  className={`relative cursor-pointer block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500/20 transition-all text-sm flex items-center gap-2 flex-wrap min-h-[46px] ${isModelsExpanded ? 'max-h-[250px] overflow-y-auto items-start content-start' : 'max-h-[46px] overflow-hidden'}`}
+                  className="relative cursor-pointer block w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500/20 transition-all text-sm min-h-[46px] flex items-center gap-2 flex-wrap"
                   onClick={() => {
                     setIsModelDropdownOpen(true);
                     if (discoveredModels.length === 0 && !isDiscovering) {
@@ -1767,120 +1742,56 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                     }
                   }}
                 >
-                  {selectedModels.length === 0 ? (
-                    <input
-                      type="text"
-                      value={newModelName}
-                      onChange={(e) => {
-                        setNewModelName(e.target.value);
-                        setModelSearchQuery(e.target.value);
+                  <input
+                    type="text"
+                    value={newModelName}
+                    onChange={(e) => {
+                      setNewModelName(e.target.value);
+                      setModelSearchQuery(e.target.value);
+                    }}
+                    placeholder={isDiscovering ? '正在发现模型...' : (discoveredModels.length > 0 ? `已发现 ${discoveredModels.length} 个模型 (点击或输入搜索)` : '例如: gpt-4o (点击加载可用列表)')}
+                    className="bg-transparent border-none outline-none w-full text-sm placeholder-gray-400 py-1"
+                    onFocus={() => setIsModelDropdownOpen(true)}
+                  />
+                  {newModelName && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNewModelName('');
+                        setModelSearchQuery('');
                       }}
-                      placeholder={isDiscovering ? '正在发现模型...' : (discoveredModels.length > 0 ? `已发现 ${discoveredModels.length} 个模型 (点击或输入搜索)` : '例如: gpt-4o (点击加载可用列表)')}
-                      className="bg-transparent border-none outline-none w-full text-sm placeholder-gray-400 py-1"
-                      onFocus={() => setIsModelDropdownOpen(true)}
-                    />
-                  ) : (
-                    <>
-                      {selectedModels.map(m => (
-                        <span key={m} className="bg-blue-100 border border-blue-200 text-blue-800 px-2.5 py-1 rounded-lg text-xs flex items-center gap-1.5 font-medium shadow-sm">
-                          {m}
-                          <X 
-                            className="w-3.5 h-3.5 cursor-pointer hover:text-blue-900 hover:bg-blue-200 rounded p-0.5 transition-colors" 
-                            onClick={(e) => { e.stopPropagation(); setSelectedModels(prev => prev.filter(x => x !== m)); }} 
-                          />
-                        </span>
-                      ))}
-                      <input
-                        type="text"
-                        value={modelSearchQuery}
-                        onChange={(e) => setModelSearchQuery(e.target.value)}
-                        placeholder="继续搜索..."
-                        className="bg-transparent border-none outline-none min-w-[100px] flex-1 text-sm placeholder-gray-400 py-1"
-                        onFocus={() => setIsModelDropdownOpen(true)}
-                      />
-                    </>
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-all"
+                      title="清除"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
                 </div>
 
                 {isModelDropdownOpen && (discoveredModels.length > 0 || isDiscovering) && (
                   <div className="absolute z-50 left-0 right-0 top-[80px] bg-white border border-gray-200 rounded-xl shadow-2xl max-h-[350px] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex flex-col gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/95 backdrop-blur">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                          发现的模型 ({discoveredModels.length})
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowOnlyConnected(!showOnlyConnected); }}
-                            className={`text-xs flex items-center gap-1 font-medium px-2 py-1.5 rounded-md transition-colors border ${
-                              showOnlyConnected 
-                                ? 'text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 border-green-200'
-                                : 'text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 border-gray-200'
-                            }`}
-                          >
-                            {showOnlyConnected ? '显示全部模型' : '仅显示已联通'}
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleTestAllFiltered(); }}
-                            className="text-xs flex items-center gap-1 text-indigo-700 font-medium hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1.5 rounded-md transition-colors border border-indigo-100"
-                          >
-                            一键检测过滤项
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1 border-t border-gray-100/60 mt-0.5">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/95 backdrop-blur">
+                      <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        发现的模型 ({discoveredModels.length})
+                      </span>
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const visibleDiscoveredModels = discoveredModels.filter(m => {
-                              if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
-                              return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
-                            });
-                            const toAdd = visibleDiscoveredModels.filter(m => !existingModelIds.has(`${newModelEndpoint.trim()}/${m}`));
-                            setSelectedModels(prev => Array.from(new Set([...prev, ...toAdd])));
-                            setNewModelName('');
-                          }}
-                          className="text-xs text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors border border-gray-200 font-medium bg-gradient-to-b from-white to-gray-50 shadow-sm"
+                          onClick={(e) => { e.stopPropagation(); setShowOnlyConnected(!showOnlyConnected); }}
+                          className={`text-xs flex items-center gap-1 font-medium px-2 py-1.5 rounded-md transition-colors border ${
+                            showOnlyConnected 
+                              ? 'text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 border-green-200'
+                              : 'text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 border-gray-200'
+                          }`}
                         >
-                          全选
+                          {showOnlyConnected ? '显示全部模型' : '仅显示已联通'}
                         </button>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const visibleDiscoveredModels = discoveredModels.filter(m => {
-                              if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
-                              return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
-                            });
-                            const validVisible = visibleDiscoveredModels.filter(m => !existingModelIds.has(`${newModelEndpoint.trim()}/${m}`));
-                            setSelectedModels(prev => {
-                              const prevSet = new Set(prev);
-                              const newSelected = new Set(prev);
-                              validVisible.forEach(m => {
-                                if (prevSet.has(m)) newSelected.delete(m);
-                                else newSelected.add(m);
-                              });
-                              return Array.from(newSelected);
-                            });
-                            setNewModelName('');
-                          }}
-                          className="text-xs text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors border border-gray-200 font-medium bg-gradient-to-b from-white to-gray-50 shadow-sm"
+                          onClick={(e) => { e.stopPropagation(); handleTestAllFiltered(); }}
+                          className="text-xs flex items-center gap-1 text-indigo-700 font-medium hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1.5 rounded-md transition-colors border border-indigo-100"
                         >
-                          反选
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const visibleDiscoveredModels = discoveredModels.filter(m => {
-                              if (showOnlyConnected && individualTestStatus[m]?.status !== 'success') return false;
-                              return m.toLowerCase().includes(modelSearchQuery.toLowerCase());
-                            });
-                            const visibleSet = new Set(visibleDiscoveredModels);
-                            setSelectedModels(prev => prev.filter(m => !visibleSet.has(m)));
-                          }}
-                          className="text-xs text-gray-600 hover:text-gray-800 bg-white hover:bg-gray-100 px-2 py-1.5 rounded-md transition-colors border border-gray-200 font-medium bg-gradient-to-b from-white to-gray-50 shadow-sm"
-                        >
-                          取消选择
+                          一键检测过滤项
                         </button>
                       </div>
                     </div>
@@ -1909,7 +1820,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                         return visibleDiscoveredModels.map(m => {
                           const isExisting = existingModelIds.has(`${newModelEndpoint.trim()}/${m}`);
                           const testData = individualTestStatus[m];
-                          const isSelected = selectedModels.includes(m) || (selectedModels.length === 0 && newModelName === m);
+                          const isSelected = newModelName === m;
 
                           return (
                             <div 
@@ -1922,31 +1833,14 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                               if (isExisting) return;
                               e.preventDefault();
                               if (isSelected) {
-                                if (selectedModels.length === 0 && newModelName === m) {
-                                  setNewModelName('');
-                                } else {
-                                  setSelectedModels(prev => prev.filter(x => x !== m));
-                                }
+                                setNewModelName('');
                               } else {
-                                if (selectedModels.length === 0 && newModelName && newModelName !== m) {
-                                  // Transform the single newModelName into the array along with the new selection
-                                  setSelectedModels([newModelName, m]);
-                                  setNewModelName('');
-                                } else {
-                                  setSelectedModels(prev => [...prev, m]);
-                                  setNewModelName('');
-                                }
+                                setNewModelName(m);
+                                setIsModelDropdownOpen(false);
                               }
                             }}
                           >
                             <div className="flex items-center gap-3 overflow-hidden flex-1">
-                              <input 
-                                type="checkbox" 
-                                className="rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 w-4 h-4"
-                                checked={isSelected || isExisting}
-                                disabled={isExisting}
-                                readOnly
-                              />
                               <span className={`truncate ${isSelected ? 'text-blue-900' : 'text-gray-700'}`} title={m}>{m}</span>
                               {isExisting && <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full ml-1 shrink-0 font-medium">已在使用</span>}
                             </div>
@@ -1987,7 +1881,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               <button
                 type="button"
                 onClick={handleTestModel}
-                disabled={testModelStatus === 'testing' || !newModelEndpoint.trim() || (!newModelName.trim() && selectedModels.length === 0)}
+                disabled={testModelStatus === 'testing' || !newModelEndpoint.trim() || !newModelName.trim()}
                 className="px-5 py-2.5 text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
               >
                 {testModelStatus === 'testing' ? <Loader2 className="w-4 h-4 animate-spin" /> : '检测模型'}
@@ -1995,11 +1889,11 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
               <button
                 type="button"
                 onClick={() => handleAddModel(false)}
-                disabled={isLoading || testModelStatus === 'testing' || !newModelEndpoint.trim() || (!newModelName.trim() && selectedModels.length === 0)}
+                disabled={isLoading || testModelStatus === 'testing' || !newModelEndpoint.trim() || !newModelName.trim()}
                 className="px-6 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {selectedModels.length > 1 ? `批量添加 (${selectedModels.length})` : '确认添加'}
+                确认添加
               </button>
             </div>
           </div>
