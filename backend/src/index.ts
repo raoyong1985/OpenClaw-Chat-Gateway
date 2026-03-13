@@ -403,7 +403,6 @@ app.post('/api/config/max-permissions', (req, res) => {
       config.commands.restart = true;
       config.commands.native = 'auto';
       config.commands.nativeSkills = 'auto';
-      config.commands.allowlist = ['*'];
     } else {
       config.tools = { profile: 'coding' };
     }
@@ -425,9 +424,11 @@ app.post('/api/config/max-permissions', (req, res) => {
         if (enabled) {
           approvals.defaults.ask = 'off';
           approvals.defaults.security = 'full';
+          approvals.agents = { '*': { allowlist: [{ pattern: '*' }] } };
         } else {
           delete approvals.defaults.ask;
           delete approvals.defaults.security;
+          delete approvals.agents;
         }
         fs.writeFileSync(execApprovalsPath, JSON.stringify(approvals, null, 2));
       } catch (e) {
