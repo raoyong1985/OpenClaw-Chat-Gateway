@@ -1932,7 +1932,7 @@ export default function SettingsView({ settingsTab, onMenuClick }: SettingsViewP
                                 }`}
                               >
                                 {isAnyTesting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                                检测
+                                检测（{visibleDiscoveredModels.length}）
                               </button>
                             </div>
                           </div>
