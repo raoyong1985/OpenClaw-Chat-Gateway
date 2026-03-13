@@ -66,7 +66,7 @@ export class OpenClawClient extends EventEmitter {
                   password: this.config.password,
                 },
                 role: 'operator',
-                scopes: ['operator.admin'],
+                scopes: ['operator.admin', 'operator.write', 'operator.read'],
               });
 
               this.connected = true;
