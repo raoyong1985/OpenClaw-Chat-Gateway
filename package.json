@@ -12,7 +12,8 @@
     "build:backend": "cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
     "start:backend": "cd backend && PORT=3110 CLAWUI_DATA_DIR=.clawui_release npm start",
-    "start:frontend": "cd frontend && npx vite preview --port 3115 --host"
+    "start:frontend": "cd frontend && npx vite preview --port 3115 --host",
+    "patch-scopes": "cd backend && node patch_scopes.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
