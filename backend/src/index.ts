@@ -359,16 +359,14 @@ app.get('/api/config/detect-all', (req, res) => {
 // --- Max Permissions Toggle ---
 const MAX_PERMISSIONS_TOOLS = {
   web: {
-    search: { enabled: false },
     fetch: { enabled: true }
-  },
-  elevated: {
-    enabled: true,
-    allowFrom: { webchat: ['*'], '*': ['*'] }
   },
   exec: {
     security: 'full',
     ask: 'off'
+  },
+  elevated: {
+    enabled: true
   }
 };
 
