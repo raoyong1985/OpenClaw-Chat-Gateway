@@ -403,6 +403,7 @@ app.post('/api/config/max-permissions', (req, res) => {
       config.commands.restart = true;
       config.commands.native = 'auto';
       config.commands.nativeSkills = 'auto';
+      config.commands.allowlist = ['*'];
     } else {
       config.tools = { profile: 'coding' };
     }
