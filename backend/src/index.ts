@@ -129,42 +129,53 @@ const connections = new Map<string, OpenClawClient>();
 
 // Rewrite absolute local file paths in AI responses to HTTP-accessible download URLs
 function rewriteOpenClawMediaPaths(text: string): string {
-  // Match absolute Unix paths, stopping at whitespace, Markdown punct, or Chinese brackets/parens
-  // \uff08\uff09 = （） \u3010\u3011 = 【】 \u300a\u300b = 《》
+  const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.avif', '.ico'];
+  const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus'];
+  const videoExts = ['.mp4', '.webm', '.mkv', '.mov', '.avi', '.flv'];
+
+  function toDownloadUrl(absolutePath: string): string {
+    const encodedPath = Buffer.from(absolutePath).toString('base64');
+    return `/api/files/download?path=${encodeURIComponent(encodedPath)}`;
+  }
+
+  function getMediaMarkdown(absolutePath: string): string {
+    const ext = path.extname(absolutePath).toLowerCase();
+    const filename = path.basename(absolutePath);
+    const url = toDownloadUrl(absolutePath);
+    if (imageExts.includes(ext)) return `![${filename}](${url})`;
+    return `[${filename}](${url})`;
+  }
+
+  // First pass: rewrite existing markdown image/link syntax with local paths
+  // Matches: ![alt](/absolute/path.png) or [name](/absolute/path.mp3)
+  text = text.replace(/(!?\[([^\]]*)\])\((\/[^\s)]+)\)/g, (full, _linkPart, linkText, urlPath) => {
+    if (urlPath.includes('://') || urlPath.startsWith('/api/') || urlPath.startsWith('/uploads/') || urlPath.startsWith('/openclaw/')) {
+      return full; // Already a valid URL
+    }
+    if (urlPath.split('/').length >= 3 && path.extname(urlPath)) {
+      const ext = path.extname(urlPath).toLowerCase();
+      const dlUrl = toDownloadUrl(urlPath);
+      if (imageExts.includes(ext)) return `![${linkText}](${dlUrl})`;
+      return `[${linkText}](${dlUrl})`;
+    }
+    return full;
+  });
+
+  // Second pass: rewrite bare absolute file paths (not already in markdown syntax)
   const regex = /(\/(?:[^\s\)\]\u0022\u0027\u0060|<>\uff08\uff09\u3010\u3011\u300a\u300b\u300c\u300d]+))/g;
   
   return text.replace(regex, (match, _p1, offset) => {
-    // Must have at least 2 path segments (e.g. /home/something) to avoid matching things like /api
     if (match.split('/').length < 3) return match;
-    // Must have a file extension to be considered a downloadable file
     const ext = path.extname(match);
     if (!ext) return match;
-    // Skip URLs: check both the match content and surrounding context
     if (match.includes('://')) return match;
-    // Skip if this is part of a URL (preceded by ":" from a scheme like https: or http:)
     if (offset > 0 && text[offset - 1] === ':') return match;
-    
-    // Determine media type for inline rendering
-    const extLower = ext.toLowerCase();
-    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.avif'];
-    const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus'];
-    const videoExts = ['.mp4', '.webm', '.mkv', '.mov', '.avi', '.flv'];
+    // Skip if already inside markdown link syntax: ](...) or ](...)
+    const before = text.substring(Math.max(0, offset - 2), offset);
+    if (before.endsWith('](')) return match;
     
     try {
-      const encodedPath = Buffer.from(match).toString('base64');
-      const filename = path.basename(match);
-      const downloadUrl = `/api/files/download?path=${encodeURIComponent(encodedPath)}`;
-      
-      // Return appropriate markdown based on file type
-      if (imageExts.includes(extLower)) {
-        return `\n\n![${filename}](${downloadUrl})\n\n`;
-      }
-      // For audio/video, use a link that the frontend renderer will convert to a player
-      if (audioExts.includes(extLower) || videoExts.includes(extLower)) {
-        return `\n\n[${filename}](${downloadUrl})\n\n`;
-      }
-      // Other files: download link
-      return `\n\n[${filename}](${downloadUrl})\n\n`;
+      return `\n\n${getMediaMarkdown(match)}\n\n`;
     } catch {
       return match;
     }
@@ -1303,8 +1314,15 @@ app.get('/api/files/download', (req, res) => {
     if (mimeTypes[ext]) {
       res.setHeader('Content-Type', mimeTypes[ext]);
     }
-    // Set proper Content-Disposition with UTF-8 filename for correct downloads
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    // Media files: inline display; Other files: force download
+    const inlineExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.avif',
+                        '.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus',
+                        '.mp4', '.webm', '.mkv', '.mov', '.avi', '.pdf'];
+    if (inlineExts.includes(ext)) {
+      res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    } else {
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    }
     res.sendFile(absolutePath);
   } catch (error: any) {
     console.error(`[Download Error] ${error.message}`);
