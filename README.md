@@ -45,22 +45,22 @@
 
 **默认端口 3115**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/install.sh | bash
 ```
 
 **自定义端口部署 (例如 8080)**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/install.sh | bash -s 8080
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/install.sh | bash -s 8080
 ```
 
 #### 🆙 无损升级
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/update.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/update.sh | bash
 ```
 
 #### 🗑️ 彻底卸载
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/uninstall.sh | bash
 ```
 
 ---
@@ -122,22 +122,22 @@ sudo apt update && sudo apt install libreoffice -y
 
 **Default port 3115**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/install.sh | bash
 ```
 
 **Custom port deployment (e.g., 8080)**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/install.sh | bash -s 8080
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/install.sh | bash -s 8080
 ```
 
 #### 🆙 Non-Destructive Upgrade
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/update.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/update.sh | bash
 ```
 
 #### 🗑️ Complete Uninstallation
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/OpenClaw-Chat-Gateway/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/raoyong1985/OpenClaw-Chat-Gateway/main/uninstall.sh | bash
 ```
 
 ---
