@@ -1090,18 +1090,23 @@ export default function ChatView({ isConnected, activeSessionId, onMenuClick, se
                             </blockquote>
                           );
                         },
-                        // Custom image renderer to support nice borders and rounded corners
+                        // Custom image renderer - WeChat style
                         img({ src, alt }) {
                           return (
                             <div 
-                              className="inline-block relative overflow-hidden rounded-xl border border-gray-200/60 max-w-[200px] m-1 transition-transform hover:scale-[1.02] cursor-pointer bg-white"
+                              className="my-1 max-w-[260px] cursor-pointer"
                               onClick={() => {
                                 if (src) {
                                   setPreviewFile({ url: src, filename: alt || 'image.png' });
                                 }
                               }}
                             >
-                              <img src={src} alt={alt} className="w-full h-auto block m-0" loading="lazy" />
+                              <img 
+                                src={src} 
+                                alt={alt} 
+                                className="w-full h-auto rounded-xl shadow-sm hover:shadow-md transition-shadow" 
+                                loading="lazy" 
+                              />
                             </div>
                           );
                         },
@@ -1109,57 +1114,93 @@ export default function ChatView({ isConnected, activeSessionId, onMenuClick, se
                         a({ href, children, ...props }) {
                           const isUpload = href?.startsWith('/uploads/') || href?.startsWith('/openclaw/') || href?.startsWith('/api/files/download');
                           
-                          // --- Audio inline player ---
-                          if (isUpload && href && isAudioFile(href)) {
+                          // Detect media type: from URL extension OR from ?type= query param
+                          const getTypeFromUrl = (url: string): string => {
+                            // Check ?type= param first (for /api/files/download URLs)
+                            try {
+                              const u = new URL(url, window.location.origin);
+                              const typeParam = u.searchParams.get('type');
+                              if (typeParam && ['image','audio','video','file'].includes(typeParam)) return typeParam;
+                            } catch {}
+                            // Fallback: check file extension
+                            const cleanUrl = url.split('?')[0];
+                            if (isImageFile(cleanUrl)) return 'image';
+                            if (isAudioFile(cleanUrl)) return 'audio';
+                            if (isVideoFile(cleanUrl)) return 'video';
+                            return 'file';
+                          };
+
+                          const mediaType = isUpload && href ? getTypeFromUrl(href) : 'file';
+                          
+                          // --- Audio inline player (WeChat style) ---
+                          if (mediaType === 'audio') {
                             const displayName = typeof children === 'string' ? children
                               : Array.isArray(children) ? children.join('')
-                              : href.split('/').pop() || 'audio';
+                              : '音频';
                             return (
-                              <div className="my-3 w-full max-w-md">
-                                <audio
-                                  controls
-                                  src={href}
-                                  preload="metadata"
-                                  className="w-full rounded-xl"
-                                >
-                                  您的浏览器不支持音频播放
-                                </audio>
-                                <p className="text-[12px] text-gray-400 mt-1 truncate">{displayName}</p>
+                              <div className="my-2 w-full max-w-sm">
+                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-200">
+                                  <audio
+                                    controls
+                                    src={href}
+                                    preload="metadata"
+                                    className="w-full h-10"
+                                  >
+                                    您的浏览器不支持音频播放
+                                  </audio>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-1 ml-1">{displayName}</p>
                               </div>
                             );
                           }
 
-                          // --- Video inline player ---
-                          if (isUpload && href && isVideoFile(href)) {
+                          // --- Video inline player (WeChat style) ---
+                          if (mediaType === 'video') {
                             const displayName = typeof children === 'string' ? children
                               : Array.isArray(children) ? children.join('')
-                              : href.split('/').pop() || 'video';
+                              : '视频';
                             return (
-                              <div className="my-3 w-full max-w-lg">
-                                <video
-                                  controls
-                                  src={href}
-                                  preload="metadata"
-                                  className="w-full rounded-xl border border-gray-200 bg-black"
+                              <div className="my-2 max-w-xs">
+                                <div 
+                                  className="relative rounded-2xl overflow-hidden cursor-pointer bg-black group"
+                                  onClick={() => setPreviewFile({ url: href || '', filename: displayName })}
                                 >
-                                  您的浏览器不支持视频播放
-                                </video>
-                                <p className="text-[12px] text-gray-400 mt-1 truncate">{displayName}</p>
+                                  <video
+                                    src={href}
+                                    preload="metadata"
+                                    className="w-full max-h-48 object-cover"
+                                    muted
+                                  />
+                                  {/* Play button overlay */}
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                                      <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z"/>
+                                      </svg>
+                                    </div>
+                                  </div>
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-1 ml-1">{displayName}</p>
                               </div>
                             );
                           }
 
-                          // --- Image inline display ---
-                          if (isUpload && href && isImageFile(href)) {
+                          // --- Image inline display (WeChat style) ---
+                          if (mediaType === 'image') {
                             const displayName = typeof children === 'string' ? children
                               : Array.isArray(children) ? children.join('')
-                              : href.split('/').pop() || 'image';
+                              : '图片';
                             return (
                               <div 
-                                className="inline-block relative overflow-hidden rounded-xl border border-gray-200/60 max-w-[280px] m-1 transition-transform hover:scale-[1.02] cursor-pointer bg-white"
-                                onClick={() => setPreviewFile({ url: href, filename: displayName })}
+                                className="my-1 max-w-[260px] cursor-pointer"
+                                onClick={() => setPreviewFile({ url: href || '', filename: displayName })}
                               >
-                                <img src={href} alt={displayName} className="w-full h-auto block m-0" loading="lazy" />
+                                <img 
+                                  src={href} 
+                                  alt={displayName} 
+                                  className="w-full h-auto rounded-xl shadow-sm hover:shadow-md transition-shadow" 
+                                  loading="lazy" 
+                                />
                               </div>
                             );
                           }

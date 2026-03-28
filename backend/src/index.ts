@@ -135,7 +135,16 @@ function rewriteOpenClawMediaPaths(text: string): string {
 
   function toDownloadUrl(absolutePath: string): string {
     const encodedPath = Buffer.from(absolutePath).toString('base64');
-    return `/api/files/download?path=${encodeURIComponent(encodedPath)}`;
+    const ext = path.extname(absolutePath).toLowerCase();
+    // Add type param so frontend can detect media type from URL
+    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.avif', '.ico'];
+    const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus'];
+    const videoExts = ['.mp4', '.webm', '.mkv', '.mov', '.avi', '.flv'];
+    let type = 'file';
+    if (imageExts.includes(ext)) type = 'image';
+    else if (audioExts.includes(ext)) type = 'audio';
+    else if (videoExts.includes(ext)) type = 'video';
+    return `/api/files/download?path=${encodeURIComponent(encodedPath)}&type=${type}`;
   }
 
   function getMediaMarkdown(absolutePath: string): string {
