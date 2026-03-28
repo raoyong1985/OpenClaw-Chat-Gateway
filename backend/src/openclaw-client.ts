@@ -102,8 +102,16 @@ export class OpenClawClient extends EventEmitter {
 
             const state = payload.state; // 'delta' | 'final'
             const sessionKey = payload.sessionKey;
-            const text = payload.message?.content?.[0]?.text || '';
             const runId = payload.runId;
+
+            // Extract text from ALL content elements, not just the first one
+            const contentArray = payload.message?.content;
+            let text = '';
+            if (Array.isArray(contentArray)) {
+              text = this.contentToMarkdown(contentArray);
+            } else if (typeof contentArray === 'string') {
+              text = contentArray;
+            }
 
             if (state === 'delta') {
               this.emit('chat.delta', { sessionKey, runId, text });
@@ -158,12 +166,58 @@ export class OpenClawClient extends EventEmitter {
       const m = messages[i];
       if (m?.role !== 'assistant') continue;
       const content = Array.isArray(m?.content) ? m.content : [];
-      const textParts = content
-        .filter((c: any) => c?.type === 'text' && typeof c?.text === 'string')
-        .map((c: any) => c.text);
-      if (textParts.length > 0) return textParts.join('\n');
+      const text = this.contentToMarkdown(content);
+      if (text) return text;
     }
     return '';
+  }
+
+  /**
+   * Convert OpenClaw content array to markdown string.
+   * Handles: text, image (base64/file), audio, media, tool_result, tool_use
+   */
+  private contentToMarkdown(content: any[]): string {
+    const parts: string[] = [];
+    for (const item of content) {
+      if (!item || typeof item !== 'object') continue;
+
+      if (item.type === 'text' && typeof item.text === 'string') {
+        parts.push(item.text);
+      } else if (item.type === 'image') {
+        const source = item.source;
+        if (source?.type === 'base64') {
+          const mime = source.media_type || 'image/png';
+          parts.push(`![image](data:${mime};base64,${source.data})`);
+        } else if (source?.path || item.file_path) {
+          parts.push(`![image](${source?.path || item.file_path})`);
+        } else if (item.url) {
+          parts.push(`![image](${item.url})`);
+        }
+      } else if (item.type === 'audio' || item.type === 'media') {
+        const path = item.file_path || item.path || item.source?.path || '';
+        const name = item.name || (item.type === 'audio' ? '音频' : '媒体文件');
+        if (path) parts.push(`[${name}](${path})`);
+      } else if (item.type === 'tool_use' && item.name === 'tts') {
+        parts.push('[语音消息]');
+      } else if (item.type === 'tool_result') {
+        if (typeof item.content === 'string') {
+          parts.push(item.content);
+        } else if (Array.isArray(item.content)) {
+          for (const sub of item.content) {
+            if (sub?.type === 'text') parts.push(sub.text);
+            else if (sub?.type === 'image') {
+              const src = sub.source;
+              if (src?.type === 'base64') {
+                parts.push(`![image](data:${src.media_type || 'image/png'};base64,${src.data})`);
+              } else if (src?.path || sub.file_path) {
+                parts.push(`![image](${src?.path || sub.file_path})`);
+              }
+            }
+          }
+        }
+      }
+    }
+    return parts.join('\n\n');
   }
 
   // Non-blocking: sends message and returns immediately. 
