@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, Children, isValidElement, cloneElement, ReactNode } from 'react';
 import { Menu, Plus, Quote, Copy, Check, Download, X, Search, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
-import { getFileIconInfo } from '../utils/fileUtils';
+import { getFileIconInfo, isImageFile, isAudioFile, isVideoFile } from '../utils/fileUtils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -1108,6 +1108,62 @@ export default function ChatView({ isConnected, activeSessionId, onMenuClick, se
                         // Render generic files nicely
                         a({ href, children, ...props }) {
                           const isUpload = href?.startsWith('/uploads/') || href?.startsWith('/openclaw/') || href?.startsWith('/api/files/download');
+                          
+                          // --- Audio inline player ---
+                          if (isUpload && href && isAudioFile(href)) {
+                            const displayName = typeof children === 'string' ? children
+                              : Array.isArray(children) ? children.join('')
+                              : href.split('/').pop() || 'audio';
+                            return (
+                              <div className="my-3 w-full max-w-md">
+                                <audio
+                                  controls
+                                  src={href}
+                                  preload="metadata"
+                                  className="w-full rounded-xl"
+                                >
+                                  您的浏览器不支持音频播放
+                                </audio>
+                                <p className="text-[12px] text-gray-400 mt-1 truncate">{displayName}</p>
+                              </div>
+                            );
+                          }
+
+                          // --- Video inline player ---
+                          if (isUpload && href && isVideoFile(href)) {
+                            const displayName = typeof children === 'string' ? children
+                              : Array.isArray(children) ? children.join('')
+                              : href.split('/').pop() || 'video';
+                            return (
+                              <div className="my-3 w-full max-w-lg">
+                                <video
+                                  controls
+                                  src={href}
+                                  preload="metadata"
+                                  className="w-full rounded-xl border border-gray-200 bg-black"
+                                >
+                                  您的浏览器不支持视频播放
+                                </video>
+                                <p className="text-[12px] text-gray-400 mt-1 truncate">{displayName}</p>
+                              </div>
+                            );
+                          }
+
+                          // --- Image inline display ---
+                          if (isUpload && href && isImageFile(href)) {
+                            const displayName = typeof children === 'string' ? children
+                              : Array.isArray(children) ? children.join('')
+                              : href.split('/').pop() || 'image';
+                            return (
+                              <div 
+                                className="inline-block relative overflow-hidden rounded-xl border border-gray-200/60 max-w-[280px] m-1 transition-transform hover:scale-[1.02] cursor-pointer bg-white"
+                                onClick={() => setPreviewFile({ url: href, filename: displayName })}
+                              >
+                                <img src={href} alt={displayName} className="w-full h-auto block m-0" loading="lazy" />
+                              </div>
+                            );
+                          }
+
                           if (!isUpload) {
                             return (
                               <span className="relative inline group/link">

@@ -20,7 +20,7 @@ interface FilePreviewModalProps {
 
 type PreviewState = 
   | { status: 'loading' }
-  | { status: 'ready'; type: 'image' | 'pdf' | 'html' | 'text' | 'code' | 'unsupported'; content?: string; pdfUrl?: string }
+  | { status: 'ready'; type: 'image' | 'pdf' | 'html' | 'text' | 'code' | 'audio' | 'video' | 'unsupported'; content?: string; pdfUrl?: string }
   | { status: 'error'; message: string };
 
 // Cache capabilities result
@@ -41,7 +41,7 @@ async function getCapabilities(): Promise<{ libreoffice: boolean }> {
 function getFileType(filename: string): string {
   const cleanName = filename.replace(/[\uff08（(].*$/, '').trim();
   const ext = cleanName.split('.').pop()?.toLowerCase() || '';
-  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico'].includes(ext)) return 'image';
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'].includes(ext)) return 'image';
   if (ext === 'pdf') return 'pdf';
   if (['doc', 'docx'].includes(ext)) return 'docx';
   if (['xls', 'xlsx'].includes(ext)) return 'xlsx';
@@ -49,6 +49,8 @@ function getFileType(filename: string): string {
   if (['ppt', 'pptx'].includes(ext)) return 'pptx';
   if (['txt', 'md', 'log', 'json', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'conf'].includes(ext)) return 'text';
   if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'rb', 'php', 'html', 'css', 'scss', 'less', 'sql', 'sh', 'bash', 'zsh'].includes(ext)) return 'code';
+  if (['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac', 'wma', 'opus'].includes(ext)) return 'audio';
+  if (['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'flv', 'm4v'].includes(ext)) return 'video';
   return 'unknown';
 }
 
@@ -288,6 +290,10 @@ export default function FilePreviewModal({ url, filename, onClose }: FilePreview
       case 'code':
         await loadText(fileType as 'text' | 'code');
         return;
+      case 'audio':
+      case 'video':
+        setPreview({ status: 'ready', type: fileType as 'audio' | 'video' });
+        return;
       default:
         setPreview({ status: 'ready', type: 'unsupported' });
     }
@@ -520,6 +526,62 @@ export default function FilePreviewModal({ url, filename, onClose }: FilePreview
               </pre>
             </div>
           </ZoomableWrapper>
+        )}
+
+        {preview.status === 'ready' && preview.type === 'audio' && (
+          <div className="flex flex-col items-center gap-6 bg-white p-8 sm:p-12 rounded-3xl max-w-lg w-full text-center border border-gray-100 shadow-lg">
+            <div className={`w-20 h-20 rounded-3xl ${bgColor} flex items-center justify-center`}>
+              <Icon className={`w-10 h-10 text-white`} />
+            </div>
+            <div>
+              <p className="text-gray-900 font-bold text-lg mb-1">{filename}</p>
+              <p className="text-gray-500 text-sm">音频文件</p>
+            </div>
+            <audio
+              controls
+              autoPlay
+              src={url}
+              className="w-full max-w-sm"
+            >
+              您的浏览器不支持音频播放
+            </audio>
+            <button
+              onClick={handleDownload}
+              className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 text-sm font-semibold transition-all flex items-center gap-2 border border-gray-200"
+            >
+              <Download className="w-4 h-4" />
+              下载文件
+            </button>
+          </div>
+        )}
+
+        {preview.status === 'ready' && preview.type === 'video' && (
+          <div className="flex flex-col items-center gap-4 w-full max-w-4xl p-4">
+            <div className="w-full">
+              <video
+                controls
+                autoPlay
+                src={url}
+                className="w-full rounded-2xl border border-gray-200 bg-black shadow-lg"
+                style={{ maxHeight: '70vh' }}
+              >
+                您的浏览器不支持视频播放
+              </video>
+            </div>
+            <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border border-gray-200">
+              <div className={`w-8 h-8 rounded-lg ${bgColor} flex items-center justify-center`}>
+                <Icon className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-gray-800 font-semibold text-sm truncate max-w-[50vw]">{filename}</span>
+              <button
+                onClick={handleDownload}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 text-xs font-semibold transition-all flex items-center gap-1.5 border border-gray-200"
+              >
+                <Download className="w-3.5 h-3.5" />
+                下载
+              </button>
+            </div>
+          </div>
         )}
 
         {preview.status === 'ready' && preview.type === 'unsupported' && (

@@ -144,10 +144,27 @@ function rewriteOpenClawMediaPaths(text: string): string {
     // Skip if this is part of a URL (preceded by ":" from a scheme like https: or http:)
     if (offset > 0 && text[offset - 1] === ':') return match;
     
+    // Determine media type for inline rendering
+    const extLower = ext.toLowerCase();
+    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.avif'];
+    const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.opus'];
+    const videoExts = ['.mp4', '.webm', '.mkv', '.mov', '.avi', '.flv'];
+    
     try {
       const encodedPath = Buffer.from(match).toString('base64');
       const filename = path.basename(match);
-      return `\n\n[${filename}](/api/files/download?path=${encodeURIComponent(encodedPath)})\n\n`;
+      const downloadUrl = `/api/files/download?path=${encodeURIComponent(encodedPath)}`;
+      
+      // Return appropriate markdown based on file type
+      if (imageExts.includes(extLower)) {
+        return `\n\n![${filename}](${downloadUrl})\n\n`;
+      }
+      // For audio/video, use a link that the frontend renderer will convert to a player
+      if (audioExts.includes(extLower) || videoExts.includes(extLower)) {
+        return `\n\n[${filename}](${downloadUrl})\n\n`;
+      }
+      // Other files: download link
+      return `\n\n[${filename}](${downloadUrl})\n\n`;
     } catch {
       return match;
     }
@@ -1234,8 +1251,23 @@ app.get('/uploads/:filename', (req, res) => {
 });
 
 
-// Serve OpenClaw files (workspaces, media, etc.)
-app.use('/openclaw', express.static(path.join(process.env.HOME || '', '.openclaw')));
+// Serve OpenClaw files (workspaces, media, etc.) - with proper MIME types
+app.use('/openclaw', express.static(path.join(process.env.HOME || '', '.openclaw'), {
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+      '.flac': 'audio/flac', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.opus': 'audio/opus',
+      '.mp4': 'video/mp4', '.webm': 'video/webm', '.mkv': 'video/x-matroska',
+      '.mov': 'video/quicktime', '.avi': 'video/x-msvideo',
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+    };
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
+    }
+  },
+}));
 
 // Securely serve arbitrary local files via base64 encoded paths
 app.get('/api/files/download', (req, res) => {
@@ -1257,6 +1289,20 @@ app.get('/api/files/download', (req, res) => {
     }
 
     const filename = path.basename(absolutePath);
+    // Set proper Content-Type for media files
+    const ext = path.extname(absolutePath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+      '.flac': 'audio/flac', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.opus': 'audio/opus',
+      '.mp4': 'video/mp4', '.webm': 'video/webm', '.mkv': 'video/x-matroska',
+      '.mov': 'video/quicktime', '.avi': 'video/x-msvideo',
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+      '.pdf': 'application/pdf',
+    };
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
+    }
     // Set proper Content-Disposition with UTF-8 filename for correct downloads
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
     res.sendFile(absolutePath);
