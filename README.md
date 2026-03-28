@@ -23,6 +23,13 @@
 ### ✨ 深度功能
 - **🗝️ 智能体完全隔离 (Sandboxing)**：独立工作区、独立记忆。每个角色拥有专属的 `SOUL.md` 和 `USER.md`，彻底告别对话污染。
 - **🖼️ 工业级预览体验**：集成 LibreOffice 渲染能力，完美支持 Word, PPT, Excel, PDF 等复杂文档在线预览，还原真实排版。
+- **📎 全格式文件收发**：支持图片、音频、视频、文档等全格式文件的发送与接收。
+  - 🖼️ **图片**：PNG, JPG, GIF, WebP, BMP, AVIF — 内联显示，点击放大，支持缩放
+  - 🎵 **音频**：MP3, WAV, OGG, FLAC, M4A, AAC, Opus — 内联播放器，支持拖动进度条
+  - 🎬 **视频**：MP4, WebM, MKV, MOV, AVI — 内联播放器，支持全屏播放
+  - 📄 **文档**：PDF, Word, Excel, PPT — 在线预览（需安装 LibreOffice）
+  - 💾 **其他**：ZIP, 代码文件, 文本文件 — 下载与预览
+  - 支持拖拽上传、粘贴上传、多文件同时上传
 - **🚀 深度原生集成**：在对话窗口直接运行 `/status`、`/help` 等底层指令，实时反馈系统状态。
 
 <p align="center">
@@ -94,6 +101,13 @@ sudo apt update && sudo apt install libreoffice -y
 ### ✨ In-Depth Features
 - **🗝️ Complete Agent Isolation (Sandboxing)**: Independent workspaces and memory. Each character has its own `SOUL.md` and `USER.md`, completely eliminating conversation pollution.
 - **🖼️ Industrial-Grade Preview Experience**: Integrated with LibreOffice rendering capabilities, it perfectly supports online previews of complex documents such as Word, PPT, Excel, and PDF, preserving the original layout.
+- **📎 Full-Format File Send & Receive**: Supports sending and receiving images, audio, video, and documents in all common formats.
+  - 🖼️ **Images**: PNG, JPG, GIF, WebP, BMP, AVIF — inline display with click-to-zoom and pinch-to-zoom
+  - 🎵 **Audio**: MP3, WAV, OGG, FLAC, M4A, AAC, Opus — inline player with seek bar
+  - 🎬 **Video**: MP4, WebM, MKV, MOV, AVI — inline player with fullscreen support
+  - 📄 **Documents**: PDF, Word, Excel, PPT — online preview (LibreOffice required)
+  - 💾 **Others**: ZIP, code files, text files — download and preview
+  - Supports drag-and-drop upload, paste upload, and multi-file upload
 - **🚀 Deep Native Integration**: Run low-level commands like `/status` and `/help` directly in the chat window for real-time system status feedback.
 
 <p align="center">
